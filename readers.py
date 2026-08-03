@@ -1,0 +1,78 @@
+import email
+import extract_msg
+import re
+import os
+
+
+EMAIL_EXTENSIONS = {".eml", ".msg"}
+
+
+def read_raw_email(folder_path: str) -> dict:
+    print(f"\n--- Processing folder: {os.path.basename(folder_path)} ---")
+
+    email_file = None
+    attachments = []
+
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        ext = os.path.splitext(filename)[-1].lower()
+        if ext in EMAIL_EXTENSIONS:
+            email_file = (file_path, ext)
+            print(f"  [EMAIL FILE] {filename}")
+        else:
+            attachments.append({
+                "filename": filename,
+                "file_type": ext.lstrip("."),
+                "path": file_path,
+            })
+            print(f"  [ATTACHMENT] {filename}")
+
+    subject, sender, date, body = "", "", "", ""
+
+    if email_file:
+        file_path, ext = email_file
+        if ext == ".eml":
+            with open(file_path, "rb") as f:
+                msg = email.message_from_bytes(f.read())
+            subject = msg.get("Subject", "")
+            sender = msg.get("From", "")
+            date = msg.get("Date", "")
+            for part in msg.walk():
+                content_disposition = part.get("Content-Disposition", "")
+                if part.get_content_type() == "text/plain" and "attachment" not in content_disposition:
+                    body = part.get_payload(decode=True).decode("utf-8", errors="ignore")
+                    break
+
+        elif ext == ".msg":
+            msg = extract_msg.Message(file_path)
+            subject = msg.subject or ""
+            sender = msg.sender or ""
+            date = str(msg.date) if msg.date else ""
+            html_body = msg.htmlBody or b""
+            body = html_body.decode("utf-8", errors="ignore") if html_body.strip() else ""
+            print(f"  [MSG HTML BODY] {repr(body[:100])}")
+
+        print(f"  [SUBJECT]  {subject}")
+        print(f"  [SENDER]   {sender}")
+        print(f"  [DATE]     {date}")
+        print(f"  [BODY]     {body[:100].strip()}{'...' if len(body) > 100 else ''}")
+    else:
+        print(f"  [NO EMAIL FILE] attachments only")
+
+    print(f"  [ATTACHMENTS COUNT] {len(attachments)}")
+
+    return {
+        "subject": subject,
+        "sender": sender,
+        "date": date,
+        "body": body,
+        "attachments": attachments,
+    }
+
+
+def extract_body_text(email_struct: dict) -> str:
+    body = email_struct.get("body", "")
+    body = re.sub(r"<[^>]+>", " ", body)
+    body = re.sub(r"\s+", " ", body).strip()
+    print(f"  [BODY TEXT] {body[:100].strip()}{'...' if len(body) > 100 else ''}")
+    return body
