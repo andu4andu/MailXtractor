@@ -1,8 +1,16 @@
+import io
+import os
+import tempfile
+import zipfile
+import openpyxl
 import pdfplumber
+from PIL import Image
+from pptx import Presentation
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 import pytesseract
 from pdf2image import convert_from_path
 
-pytesseract.pytesseract.tesseract_cmd = r"C:\Users\uik11822\OCRtesseract.exe"
+pytesseract.pytesseract.tesseract_cmd = r"C:\Users\uik11822\OCR\tesseract.exe"
 
 IMAGE_EXTENSIONS = {".png", ".jpeg", ".jpg", ".bmp", ".tiff"}
 PDF_EXTENSIONS = {".pdf"}
@@ -68,9 +76,118 @@ def parse_pdf(path: str) -> str:
     return text
 
 
+def parse_xlsx(path: str) -> str:
+    print(f"  [PARSE XLSX] {path}")
+    wb = openpyxl.load_workbook(path, data_only=True)
+    text = ""
+    for sheet in wb.worksheets:
+        text += f"[Sheet: {sheet.title}]\n"
+        for row in sheet.iter_rows(values_only=True):
+            row_text = " | ".join(str(cell) if cell is not None else "" for cell in row)
+            if row_text.strip("|").strip():
+                text += row_text + "\n"
+    print(f"  [PARSE XLSX] extracted {len(text)} characters")
+    return text.strip()
+
+
+def _iter_shapes(shapes):
+    for shape in shapes:
+        if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+            yield from _iter_shapes(shape.shapes)
+        else:
+            yield shape
+
+
+def parse_ppt(path: str) -> str:
+    print(f"  [PARSE PPT] {path}")
+    prs = Presentation(path)
+    text = ""
+    for slide_num, slide in enumerate(prs.slides, start=1):
+        text += f"[Slide {slide_num}]\n"
+        for shape in _iter_shapes(slide.shapes):
+            if shape.has_text_frame and not (shape.is_placeholder and shape.placeholder_format.idx == 12):
+                for para in shape.text_frame.paragraphs:
+                    line = para.text.strip()
+                    if line:
+                        text += line + "\n"
+            if shape.has_table:
+                for row in shape.table.rows:
+                    row_text = " | ".join(cell.text.replace("\n", " ").strip() for cell in row.cells)
+                    if row_text.strip("|").strip():
+                        text += row_text + "\n"
+            if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+                image = Image.open(io.BytesIO(shape.image.blob))
+                ocr_text = pytesseract.image_to_string(image).strip()
+                if ocr_text:
+                    print(f"  [PARSE PPT] OCR on image in slide {slide_num}")
+                    text += ocr_text + "\n"
+    print(f"  [PARSE PPT] extracted {len(text)} characters")
+    return text.strip()
+
+
+def parse_zip(path: str) -> str:
+    print(f"  [PARSE ZIP] {path}")
+    text = ""
+    temp_dir = tempfile.mkdtemp()
+    try:
+        with zipfile.ZipFile(path, "r") as z:
+            z.extractall(temp_dir)
+        for root, _, files in os.walk(temp_dir):
+            for filename in files:
+                file_path = os.path.join(root, filename)
+                ext = os.path.splitext(filename)[-1].lower()
+                print(f"  [PARSE ZIP] found {filename}")
+                if ext in PDF_EXTENSIONS:
+                    text += f"[{filename}]\n" + parse_pdf(file_path) + "\n"
+                elif ext in SPREADSHEET_EXTENSIONS:
+                    text += f"[{filename}]\n" + parse_xlsx(file_path) + "\n"
+                elif ext in PRESENTATION_EXTENSIONS:
+                    text += f"[{filename}]\n" + parse_ppt(file_path) + "\n"
+                elif ext in DOCUMENT_EXTENSIONS:
+                    text += f"[{filename}]\n" + parse_txt(file_path) + "\n"
+                elif ext in ZIP_EXTENSIONS:
+                    text += f"[{filename}]\n" + parse_zip(file_path) + "\n"
+                else:
+                    print(f"  [PARSE ZIP] skipping unsupported file: {filename}")
+    finally:
+        for root, dirs, files in os.walk(temp_dir, topdown=False):
+            for f in files:
+                os.remove(os.path.join(root, f))
+            for d in dirs:
+                os.rmdir(os.path.join(root, d))
+        os.rmdir(temp_dir)
+    print(f"  [PARSE ZIP] extracted {len(text)} characters")
+    return text.strip()
+
+
 def parse_txt(path: str) -> str:
     print(f"  [PARSE TXT] {path}")
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         text = f.read().strip()
     print(f"  [PARSE TXT] extracted {len(text)} characters")
     return text
+
+
+def parse_single_attachment(path: str, filename: str) -> tuple:
+    ext = os.path.splitext(filename)[-1].lower()
+    print(f"  [DISPATCHER] {filename} ({ext})")
+
+    if ext in PDF_EXTENSIONS:
+        text = parse_pdf(path)
+    elif ext in SPREADSHEET_EXTENSIONS:
+        text = parse_xlsx(path)
+    elif ext in PRESENTATION_EXTENSIONS:
+        text = parse_ppt(path)
+    elif ext in DOCUMENT_EXTENSIONS:
+        text = parse_txt(path)
+    elif ext in ZIP_EXTENSIONS:
+        text = parse_zip(path)
+    elif ext in IMAGE_EXTENSIONS:
+        image = Image.open(path)
+        text = pytesseract.image_to_string(image).strip()
+        print(f"  [DISPATCHER] OCR on image: {len(text)} characters")
+    else:
+        print(f"  [DISPATCHER] unsupported file type: {ext}, skipping")
+        text = ""
+
+    return (filename, text)
