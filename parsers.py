@@ -81,6 +81,12 @@ def parse_xlsx(path: str) -> str:
     wb = openpyxl.load_workbook(path, data_only=True)
     text = ""
     for sheet in wb.worksheets:
+        if sheet.sheet_state in ("hidden", "veryHidden"):
+            print(f"  [PARSE XLSX] skipping hidden sheet: {sheet.title}")
+            continue
+        if any(skip in sheet.title for skip in ["RM_Catalog", "RM_Attribute", "BExRepository", "Drop Downs", "Instructions", "Explanation"]):
+            print(f"  [PARSE XLSX] skipping reference sheet: {sheet.title}")
+            continue
         text += f"[Sheet: {sheet.title}]\n"
         for row in sheet.iter_rows(values_only=True):
             row_text = " | ".join(str(cell) if cell is not None else "" for cell in row)
@@ -88,6 +94,28 @@ def parse_xlsx(path: str) -> str:
                 text += row_text + "\n"
     print(f"  [PARSE XLSX] extracted {len(text)} characters")
     return text.strip()
+
+
+def _is_old_ppt_format(path: str) -> bool:
+    with open(path, "rb") as f:
+        return f.read(4) == b"\xD0\xCF\x11\xE0"
+
+
+def _convert_ppt_to_pptx(path: str) -> str:
+    import win32com.client
+    abs_path = os.path.abspath(path)
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pptx")
+    temp_path = temp_file.name
+    temp_file.close()
+    os.remove(temp_path)
+    powerpoint = win32com.client.Dispatch("PowerPoint.Application")
+    powerpoint.Visible = 1
+    deck = powerpoint.Presentations.Open(abs_path, WithWindow=False)
+    deck.SaveAs(temp_path, 24)
+    deck.Close()
+    powerpoint.Quit()
+    print(f"  [CONVERT PPT] saved to {temp_path}, exists: {os.path.exists(temp_path)}")
+    return temp_path
 
 
 def _iter_shapes(shapes):
@@ -100,7 +128,20 @@ def _iter_shapes(shapes):
 
 def parse_ppt(path: str) -> str:
     print(f"  [PARSE PPT] {path}")
-    prs = Presentation(path)
+    converted_path = None
+    try:
+        if _is_old_ppt_format(path):
+            print(f"  [PARSE PPT] old format detected, converting...")
+            converted_path = _convert_ppt_to_pptx(path)
+            pptx_path = converted_path
+        else:
+            pptx_path = path
+        prs = Presentation(pptx_path)
+    except Exception as e:
+        print(f"  [PARSE PPT] failed to open: {e}")
+        if converted_path and os.path.exists(converted_path):
+            os.remove(converted_path)
+        return ""
     text = ""
     for slide_num, slide in enumerate(prs.slides, start=1):
         text += f"[Slide {slide_num}]\n"
@@ -121,6 +162,8 @@ def parse_ppt(path: str) -> str:
                 if ocr_text:
                     print(f"  [PARSE PPT] OCR on image in slide {slide_num}")
                     text += ocr_text + "\n"
+    if converted_path and os.path.exists(converted_path):
+        os.remove(converted_path)
     print(f"  [PARSE PPT] extracted {len(text)} characters")
     return text.strip()
 

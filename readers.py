@@ -27,7 +27,7 @@ def read_raw_email(folder_path: str) -> dict:
             })
             print(f"  [ATTACHMENT] {filename}")
 
-    subject, sender, date, body = "", "", "", ""
+    subject, sender, recipients, date, body = "", "", "", "", ""
 
     if email_file:
         file_path, ext = email_file
@@ -36,6 +36,7 @@ def read_raw_email(folder_path: str) -> dict:
                 msg = email.message_from_bytes(f.read())
             subject = msg.get("Subject", "")
             sender = msg.get("From", "")
+            recipients = msg.get("To", "")
             date = msg.get("Date", "")
             for part in msg.walk():
                 content_disposition = part.get("Content-Disposition", "")
@@ -47,6 +48,7 @@ def read_raw_email(folder_path: str) -> dict:
             msg = extract_msg.Message(file_path)
             subject = msg.subject or ""
             sender = msg.sender or ""
+            recipients = msg.to or ""
             date = str(msg.date) if msg.date else ""
             html_body = msg.htmlBody or b""
             body = html_body.decode("utf-8", errors="ignore") if html_body.strip() else ""
@@ -64,6 +66,7 @@ def read_raw_email(folder_path: str) -> dict:
     return {
         "subject": subject,
         "sender": sender,
+        "recipients": recipients,
         "date": date,
         "body": body,
         "attachments": attachments,

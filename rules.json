@@ -1,0 +1,245 @@
+{
+  "correlation_id": {
+    "type": "auto",
+    "source_priority": "none"
+  },
+  "date_of_input": {
+    "type": "auto",
+    "source_priority": "none"
+  },
+  "input_by": {
+    "type": "empty",
+    "source_priority": "none"
+  },
+  "customer": {
+    "type": "keyword_match",
+    "values": ["JMC", "Mazda", "VW PV", "Mercedes", "VW/ Scout", "Mitsubishi", "Volvo", "Daihatsu", "NIO", "XIAOMI", "Daimler", "Nissan", "AUDI", "FTBB", "Porsche", "BMW", "Ford", "Renault", "Chery", "GAC", "SAIC GM", "AGM", "SAIC VW", "GWM", "SGM", "Geely", "Seat", "Generic", "Skoda", "Great Wall", "Stellantis", "HMG", "Suzuki", "JLR", "Toyota", "GM", "VW"],
+    "default": "Generic",
+    "source_priority": "both"
+  },
+  "pdc": {
+    "type": "keyword_match",
+    "values": ["HUD", "DS"],
+    "default": "n/a",
+    "source_priority": "both"
+  },
+  "phase": {
+    "type": "keyword_match",
+    "values": ["RFI", "Acq", "Dev", "MP"],
+    "default": "n/a",
+    "source_priority": "both"
+  },
+  "project": {
+    "type": "label",
+    "labels": ["Project Name", "Project name"],
+    "default": "",
+    "source_priority": "attachment"
+  },
+  "target_sop_year": {
+    "type": "label",
+    "labels": ["SOP"],
+    "pattern": "\\d{4}",
+    "default": "",
+    "source_priority": "both"
+  },
+  "lifetime_volume": {
+    "type": "label",
+    "labels": ["Total （pcs)", "Total (pcs)", "Lifetime Volume"],
+    "pattern": "[\\d,]+",
+    "default": "",
+    "source_priority": "attachment"
+  },
+  "peak_annual_volume": {
+    "type": "max_pattern",
+    "pattern": "(?<=\\| )[1-9][\\d,]{2,8}(?= \\|)",
+    "default": "",
+    "source_priority": "attachment"
+  },
+  "size": {
+    "type": "label",
+    "labels": ["Display diagonal (info)", "Display diagonal", "Display Diagonal"],
+    "default": "",
+    "source_priority": "both"
+  },
+  "resolution": {
+    "type": "label",
+    "labels": ["Display Resolution (info)", "Display Resolution", "Display resolution"],
+    "pattern": "\\d{3,4}\\s*[xX*]\\s*\\d{3,4}",
+    "default": "",
+    "source_priority": "both"
+  },
+  "dimensions": {
+    "type": "label",
+    "labels": ["Active Area size", "Active Area Size"],
+    "pattern": "[\\d.]+\\s*[xX*]\\s*[\\d.]+",
+    "default": "",
+    "source_priority": "both"
+  },
+  "polarizers": {
+    "type": "keyword_match",
+    "values": ["Coating - AGAFP", "Coating - ARAGAFP", "Coating - AG", "Film - AFP", "Coating - AR", "Film - AR", "Coating - AFP", "Film - ASF", "Coating - HC", "Polarizer HC", "Film - AGAFP", "Film - AGARAFP", "n/a"],
+    "default": "n/a",
+    "source_priority": "attachment"
+  },
+  "lcf": {
+    "type": "label",
+    "labels": ["LCF", "Light Control Film"],
+    "normalize_boolean": true,
+    "default": "No",
+    "source_priority": "attachment"
+  },
+  "display_technology": {
+    "type": "keyword_match",
+    "values": ["Touch Foil", "Cover Glass", "LTPS", "OLED Glass", "Oxide", "Segmented", "OGS Touch", "OLED Plastic", "a-Si", "OLED Hybrid", "OLED Under DisplayCam"],
+    "default": "n/a",
+    "source_priority": "both"
+  },
+  "screen_curve_flat": {
+    "type": "keyword_match",
+    "values": ["Flat", "Curve"],
+    "default": "n/a",
+    "source_priority": "both"
+  },
+  "illumination_cg": {
+    "type": "keyword_match",
+    "values": ["Matrix BLU", "SodaLime", "AluSi", "Edge BLU"],
+    "default": "n/a",
+    "source_priority": "attachment"
+  },
+  "touch": {
+    "type": "label",
+    "labels": ["Touch Type", "Touch technology", "Touch"],
+    "normalize_boolean": true,
+    "default": "No",
+    "source_priority": "attachment"
+  },
+  "incell_outcell": {
+    "type": "regex",
+    "pattern": "\\b(in.?cell|out.?cell)\\b",
+    "default": "",
+    "source_priority": "both"
+  },
+  "display_type": {
+    "type": "keyword_match",
+    "values": ["Panel+CG+OB", "OGS Touch Glass", "Total Solution", "Cover Glass", "CG + Bonding only", "Touch Foil", "Panel", "Segmented Display", "Display Module", "OLED Panel", "OLED TotalSolution"],
+    "default": "n/a",
+    "source_priority": "both"
+  },
+  "bonding": {
+    "type": "label",
+    "labels": ["Bonding Type", "Bonding"],
+    "normalize_boolean": true,
+    "default": "No",
+    "source_priority": "attachment"
+  },
+  "status": {
+    "type": "keyword_match",
+    "values": ["Sourcing", "Sourced", "Quote", "Estimate", "Target"],
+    "default": "n/a",
+    "source_priority": "both"
+  },
+  "supplier_name": {
+    "type": "email_domain",
+    "fallback_type": "label",
+    "labels": ["Supplier name", "Supplier Name"],
+    "pattern": "[A-Za-z][\\w\\s,.()+\\-]{2,60}",
+    "default": "",
+    "source_priority": "attachment"
+  },
+  "org_cost": {
+    "type": "label",
+    "labels": ["Total B - Price", "Total C - Price"],
+    "pattern": "\\d+[.,]\\d+",
+    "default": "",
+    "source_priority": "attachment"
+  },
+  "org_currency": {
+    "type": "label",
+    "labels": ["Currency"],
+    "pattern": "[A-Z]{3}",
+    "default": "",
+    "source_priority": "attachment"
+  },
+  "price_in_pcis": {
+    "type": "empty",
+    "source_priority": "none"
+  },
+  "currency_in_pcis": {
+    "type": "empty",
+    "source_priority": "none"
+  },
+  "remarks": {
+    "type": "label",
+    "labels": ["Comments", "Remarks"],
+    "default": "",
+    "source_priority": "attachment"
+  },
+  "nre_cost": {
+    "type": "label",
+    "labels": ["Total Tooling Costs"],
+    "pattern": "[\\d,]+\\.?\\d*",
+    "default": "",
+    "source_priority": "attachment"
+  },
+  "conti_pn": {
+    "type": "label",
+    "labels": ["Part no.", "Part no:"],
+    "pattern": "[A-Z]{2,4}\\d{8,12}",
+    "default": "",
+    "source_priority": "attachment"
+  },
+  "supplyon_no": {
+    "type": "regex",
+    "pattern": "\\b\\d{10}\\b",
+    "default": "",
+    "source_priority": "both"
+  },
+  "local_dimming": {
+    "type": "label",
+    "labels": ["Light Control Characteristic [Y/N]", "Light Control Characteristic", "Local Dimming", "Matrix Backlight"],
+    "normalize_boolean": true,
+    "default": "No",
+    "source_priority": "both"
+  },
+  "candela": {
+    "type": "regex",
+    "pattern": "\\d+[,.]?\\d*\\s*cd/m2",
+    "default": "",
+    "source_priority": "attachment"
+  },
+  "no_of_drivers": {
+    "type": "label",
+    "labels": ["LED Driver IC", "No of drivers", "Number of drivers"],
+    "default": "",
+    "source_priority": "attachment"
+  },
+  "blu_cas_sta": {
+    "type": "keyword_match",
+    "values": ["STA", "NoCover", "CAS"],
+    "default": "n/a",
+    "source_priority": "attachment"
+  },
+  "active_area": {
+    "type": "label",
+    "labels": ["Active Area size", "Active Area Size", "Active area"],
+    "pattern": "[\\d.]+\\s*[xX*]\\s*[\\d.]+",
+    "default": "",
+    "source_priority": "both"
+  },
+  "overall_confidence": {
+    "type": "empty",
+    "source_priority": "none"
+  },
+  "review_type": {
+    "type": "empty",
+    "source_priority": "none"
+  },
+  "promoted_at": {
+    "type": "empty",
+    "source_priority": "none"
+  },
+  "promoted_by": {
+    "type": "empty",
+    "source_priority": "none"
+  }
+}
