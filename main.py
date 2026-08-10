@@ -14,6 +14,16 @@ def get_output_path():
     return rf"C:\Users\uik11822\Downloads\gold_report_{ts}.xlsx"
 
 
+def _clean_subject(subject: str) -> str:
+    subject = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", subject).strip()
+    subject = re.sub(r"^(?:(?:Fw|FW|Re|RE):\s*)+", "", subject).strip()
+    subject = re.sub(r"\s*---.*$", "", subject).strip()
+    subject = re.sub(r"\s*-\s*Sample\s*\d+\s*$", "", subject, flags=re.IGNORECASE).strip()
+    subject = re.sub(r"\s*/\s*[A-Z0-9][A-Z0-9\-]+\s*$", "", subject).strip()
+    subject = re.sub(r"\s*-\s*[A-Za-z][A-Za-z0-9]+\s*$", "", subject).strip()
+    return subject
+
+
 def process_email(folder_path: str, rules: dict) -> dict:
     folder_name = os.path.basename(folder_path)
     print(f"\n{'='*60}")
@@ -28,8 +38,10 @@ def process_email(folder_path: str, rules: dict) -> dict:
             r for r in re.split(r"[,;]", recipients_raw)
             if not any(d in r.lower() for d in INTERNAL_DOMAINS)
         )
+        cleaned_subject = _clean_subject(email_struct.get("subject", ""))
         email_header = "\n".join(filter(None, [
             f"Subject: {email_struct.get('subject', '')}",
+            f"Project: {cleaned_subject}" if cleaned_subject else "",
             f"Sender: {email_struct.get('sender', '')}",
             f"Recipients: {external_recipients}",
             f"Date: {email_struct.get('date', '')}",

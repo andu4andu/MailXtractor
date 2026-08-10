@@ -31,9 +31,9 @@
   },
   "project": {
     "type": "label",
-    "labels": ["Project Name", "Project name"],
+    "labels": ["Project"],
     "default": "",
-    "source_priority": "attachment"
+    "source_priority": "body"
   },
   "target_sop_year": {
     "type": "label",
