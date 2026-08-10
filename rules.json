@@ -66,8 +66,8 @@
   },
   "resolution": {
     "type": "label",
-    "labels": ["Display Resolution (info)", "Display Resolution", "Display resolution"],
-    "pattern": "\\d{3,4}\\s*[xX*]\\s*\\d{3,4}",
+    "labels": ["Display Resolution (info)", "Display Resolution", "Display resolution", "Resolution"],
+    "pattern": "\\d{3,4}\\s*[xX*]\\s*(?:RGB\\s*[xX*]\\s*)?\\d{3,4}",
     "default": "",
     "source_priority": "both"
   },
