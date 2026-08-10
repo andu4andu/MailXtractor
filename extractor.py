@@ -9,21 +9,36 @@ def load_rules(rules_path: str) -> dict:
         return json.load(f)
 
 
-def _extract_label(text: str, labels: list, pattern: str = None, max_length: int = 100, line_start: bool = False) -> str:
+def _extract_label(text: str, labels: list, pattern: str = None, max_length: int = 100, line_start: bool = False, next_line: bool = False) -> str:
     for label in labels:
         escaped = re.escape(label)
         prefix = r"(?:^|\n)" if line_start else r""
         match = re.search(
-            rf"{prefix}{escaped}[^|\n]*[:\|]\s*([^|\n]+)",
+            rf"{prefix}{escaped}[^|\n]*?[:\|]\s*([^\n]+)",
             text,
             re.IGNORECASE | re.MULTILINE
         )
         if match:
-            value = match.group(1).strip()
+            raw = match.group(1).strip()
+            parts = [p.strip() for p in raw.split("|")]
+            value = next((p for p in parts if p), "")
+            if not value:
+                continue
             if pattern:
                 pm = re.search(pattern, value)
                 return pm.group(0).strip() if pm else ""
             return value[:max_length].strip()
+
+        if next_line and pattern:
+            lm = re.search(rf"{prefix}{escaped}", text, re.IGNORECASE | re.MULTILINE)
+            if lm:
+                rest = text[lm.end():]
+                parts = rest.split("\n", 2)
+                next_line_text = parts[1] if len(parts) > 1 else ""
+                if next_line_text:
+                    matches = re.findall(pattern, next_line_text, re.IGNORECASE)
+                    if matches:
+                        return matches[-1].strip()
     return ""
 
 
@@ -32,16 +47,14 @@ def _extract_regex(text: str, pattern: str) -> str:
     return match.group(0).strip() if match else ""
 
 
-def _extract_supplier_from_recipients(body: str) -> str:
-    match = re.search(r"Recipients:\s*(.+)", body)
-    if not match:
-        return ""
-    recipients_line = match.group(1)
-    emails = re.findall(r"@([\w.\-]+)", recipients_line)
+INTERNAL_DOMAINS = ("continental", "aumovio")
+
+
+def _extract_supplier_from_body(body: str) -> str:
+    emails = re.findall(r"[a-zA-Z0-9._%+\-]+@([a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})", body)
     for domain in emails:
-        parts = domain.split(".")
-        company = parts[0] if len(parts) >= 2 else domain
-        if company.lower() not in ("gmail", "yahoo", "hotmail", "outlook"):
+        if not any(d in domain.lower() for d in INTERNAL_DOMAINS):
+            company = domain.split(".")[0]
             return company.replace("-", " ").replace("_", " ").title()
     return ""
 
@@ -63,18 +76,30 @@ def _normalize_boolean(value: str) -> str:
         return "Yes"
     if re.search(r"\b(no|n|n/a)\b", value, re.IGNORECASE):
         return "No"
-    return value
+    if re.match(r"^[\d\s.,]+$", value):
+        return ""
+    if value.strip():
+        return "Yes"
+    return ""
 
 
-def _extract_max_pattern(text: str, pattern: str) -> str:
-    matches = re.findall(pattern, text, re.IGNORECASE)
-    values = []
-    for m in matches:
-        try:
-            values.append(float(m.replace(",", "")))
-        except ValueError:
-            pass
-    return str(int(max(values))) if values else ""
+def _extract_max_pattern(text: str, pattern: str, max_value: int = None, fallback_pattern: str = None) -> str:
+    def _find_max(pat):
+        matches = re.findall(pat, text, re.IGNORECASE)
+        values = []
+        for m in matches:
+            try:
+                v = float(m.replace(",", ""))
+                if max_value is None or v <= max_value:
+                    values.append(v)
+            except ValueError:
+                pass
+        return str(int(max(values))) if values else ""
+
+    result = _find_max(pattern)
+    if not result and fallback_pattern:
+        result = _find_max(fallback_pattern)
+    return result
 
 
 def apply_extraction_rules(
@@ -110,19 +135,26 @@ def apply_extraction_rules(
         value = ""
         for text in sources:
             if rule_type == "label":
-                value = _extract_label(text, rule.get("labels", []), rule.get("pattern"), line_start=rule.get("line_start", False))
+                value = _extract_label(text, rule.get("labels", []), rule.get("pattern"), line_start=rule.get("line_start", False), next_line=rule.get("next_line", False))
                 if value and rule.get("normalize_boolean"):
                     value = _normalize_boolean(value)
             elif rule_type == "regex":
                 value = _extract_regex(text, rule.get("pattern", ""))
             elif rule_type == "max_pattern":
-                value = _extract_max_pattern(text, rule.get("pattern", ""))
+                value = _extract_max_pattern(text, rule.get("pattern", ""), rule.get("max_value"), rule.get("fallback_pattern"))
+                if not value and rule.get("body_fallback_pattern") and text == body_string:
+                    value = _extract_max_pattern(body_string, rule.get("body_fallback_pattern"), rule.get("max_value"))
             elif rule_type == "keyword_match":
                 value = _keyword_match(text, rule.get("values", []), debug_field=field)
             elif rule_type == "email_domain":
-                value = _extract_supplier_from_recipients(body_string)
+                value = _extract_supplier_from_body(body_string)
                 if not value and rule.get("fallback_type") == "label":
-                    value = _extract_label(text, rule.get("labels", []), rule.get("pattern"))
+                    for fallback_text in [attachment_string, body_string]:
+                        value = _extract_label(fallback_text, rule.get("labels", []), rule.get("pattern"))
+                        if value:
+                            break
+                if value and any(d in value.lower() for d in ("continental", "aumovio")):
+                    value = ""
             if value:
                 break
 

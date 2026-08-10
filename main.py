@@ -2,7 +2,7 @@ import os
 import re
 from readers import read_raw_email, extract_body_text
 from attachments import handle_attachments, spawn_attachment_workers, combine_attachment_text
-from extractor import load_rules, apply_extraction_rules
+from extractor import load_rules, apply_extraction_rules, INTERNAL_DOMAINS
 from reporter import generate_excel_report
 
 import datetime
@@ -23,7 +23,6 @@ def process_email(folder_path: str, rules: dict) -> dict:
     try:
         email_struct = read_raw_email(folder_path)
         body_string = extract_body_text(email_struct)
-        INTERNAL_DOMAINS = ("continental", "aumovio")
         recipients_raw = email_struct.get("recipients", "")
         external_recipients = " ".join(
             r for r in re.split(r"[,;]", recipients_raw)

@@ -51,9 +51,12 @@
   },
   "peak_annual_volume": {
     "type": "max_pattern",
-    "pattern": "(?<=\\| )[1-9][\\d,]{2,8}(?= \\|)",
-    "default": "",
-    "source_priority": "attachment"
+    "pattern": "(?<=\\| )[1-9]\\d{1,2}(?:,\\d{3})+(?= \\|)",
+    "fallback_pattern": "(?<=\\| )[1-9]\\d{4,6}(?= \\|)",
+    "body_fallback_pattern": "\\b([1-9]\\d{4,5})\\b",
+    "max_value": 2000000,
+    "default": "n/a",
+    "source_priority": "both"
   },
   "size": {
     "type": "label",
@@ -127,7 +130,7 @@
   },
   "bonding": {
     "type": "label",
-    "labels": ["Bonding Type", "Bonding"],
+    "labels": ["Bonding Type", "Bonding Technology", "Bonding"],
     "normalize_boolean": true,
     "default": "No",
     "source_priority": "attachment"
@@ -141,16 +144,17 @@
   "supplier_name": {
     "type": "email_domain",
     "fallback_type": "label",
-    "labels": ["Supplier name", "Supplier Name"],
+    "labels": ["Supplier name", "Supplier Name", "Supplier", "Company Name", "Company", "供应商"],
     "pattern": "[A-Za-z][\\w\\s,.()+\\-]{2,60}",
-    "default": "",
+    "default": "Unknown",
     "source_priority": "attachment"
   },
   "org_cost": {
     "type": "label",
-    "labels": ["Total B - Price", "Total C - Price"],
-    "pattern": "\\d+[.,]\\d+",
-    "default": "",
+    "labels": ["Total C - Price", "Total B - Price", "TATAL-C", "TATAL-B"],
+    "pattern": "\\d+(?:[.,]\\d+)?",
+    "next_line": true,
+    "default": "n/a",
     "source_priority": "attachment"
   },
   "org_currency": {

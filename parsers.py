@@ -76,6 +76,14 @@ def parse_pdf(path: str) -> str:
     return text
 
 
+def _cell_str(cell) -> str:
+    if isinstance(cell, float):
+        if cell == int(cell):
+            return str(int(cell))
+        return f"{cell:.2f}"
+    return str(cell)
+
+
 def parse_xlsx(path: str) -> str:
     print(f"  [PARSE XLSX] {path}")
     wb = openpyxl.load_workbook(path, data_only=True)
@@ -89,9 +97,9 @@ def parse_xlsx(path: str) -> str:
             continue
         text += f"[Sheet: {sheet.title}]\n"
         for row in sheet.iter_rows(values_only=True):
-            row_text = " | ".join(str(cell) if cell is not None else "" for cell in row)
-            if row_text.strip("|").strip():
-                text += row_text + "\n"
+            cells = [_cell_str(cell) for cell in row if cell is not None and _cell_str(cell).strip()]
+            if cells:
+                text += " | ".join(cells) + "\n"
     print(f"  [PARSE XLSX] extracted {len(text)} characters")
     return text.strip()
 
