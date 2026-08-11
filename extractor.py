@@ -59,14 +59,10 @@ def _extract_supplier_from_body(body: str) -> str:
     return ""
 
 
-def _keyword_match(text: str, values: list, debug_field: str = "") -> str:
+def _keyword_match(text: str, values: list) -> str:
     for value in values:
         match = re.search(rf"\b{re.escape(value)}\b", text, re.IGNORECASE)
         if match:
-            if debug_field:
-                start = max(0, match.start() - 50)
-                end = min(len(text), match.end() + 50)
-                print(f"  [MATCH:{debug_field}] '{value}' found in: ...{repr(text[start:end])}...")
             return value
     return ""
 
@@ -81,6 +77,69 @@ def _normalize_boolean(value: str) -> str:
     if value.strip():
         return "Yes"
     return ""
+
+
+def _find_year_table_sum(text: str, max_value: int = None) -> str:
+    year_pat = re.compile(r'(?<!\d)20[2-3]\d(?!\d)')
+    num_pat = re.compile(r'[1-9]\d{1,2}(?:,\d{3})+|[1-9]\d{4,6}')
+    lines = text.split('\n')
+
+    def _collect(nums_found):
+        values = []
+        for n in nums_found:
+            try:
+                v = float(n.replace(',', ''))
+                if max_value is None or v <= max_value:
+                    values.append(v)
+            except ValueError:
+                pass
+        if values and len(values) > 1 and int(values[-1]) == int(sum(values[:-1])):
+            values = values[:-1]
+        n = len(values)
+        if n > 1 and n % 2 == 0:
+            half1 = [int(v) for v in values[:n//2]]
+            half2 = [int(v) for v in values[n//2:]]
+            if half1 == half2:
+                values = values[:n//2]
+        return values
+
+    # Approach 1: column-per-year — row with 2+ year tokens, quantities on next lines
+    for i, line in enumerate(lines):
+        if len(year_pat.findall(line)) >= 2:
+            for j in range(i + 1, min(i + 6, len(lines))):
+                candidate = lines[j]
+                if len(year_pat.findall(candidate)) >= 2:
+                    break
+                values = _collect(num_pat.findall(candidate))
+                if values:
+                    return str(int(sum(values)))
+
+    # Approach 2: row-per-year — year and quantity on the same line
+    row_pat = re.compile(r'(?<!\d)20[2-3]\d(?![\d-])[^\n]*?\|\s*([1-9]\d{1,2}(?:,\d{3})+|[1-9]\d{4,6})')
+    values = _collect(row_pat.findall(text))
+    if values:
+        return str(int(sum(values)))
+
+    return ""
+
+
+def _extract_sum_pattern(text: str, pattern: str, max_value: int = None, fallback_pattern: str = None) -> str:
+    def _find_sum(pat):
+        matches = re.findall(pat, text, re.IGNORECASE)
+        values = []
+        for m in matches:
+            try:
+                v = float(m.replace(",", ""))
+                if max_value is None or v <= max_value:
+                    values.append(v)
+            except ValueError:
+                pass
+        return str(int(sum(values))) if values else ""
+
+    result = _find_sum(pattern)
+    if not result and fallback_pattern:
+        result = _find_sum(fallback_pattern)
+    return result
 
 
 def _extract_max_pattern(text: str, pattern: str, max_value: int = None, fallback_pattern: str = None) -> str:
@@ -138,14 +197,23 @@ def apply_extraction_rules(
                 value = _extract_label(text, rule.get("labels", []), rule.get("pattern"), line_start=rule.get("line_start", False), next_line=rule.get("next_line", False))
                 if value and rule.get("normalize_boolean"):
                     value = _normalize_boolean(value)
+                if not value and rule.get("regex_fallback") and not rule.get("regex_fallback_body_first"):
+                    value = _extract_regex(text, rule.get("regex_fallback"))
             elif rule_type == "regex":
                 value = _extract_regex(text, rule.get("pattern", ""))
             elif rule_type == "max_pattern":
                 value = _extract_max_pattern(text, rule.get("pattern", ""), rule.get("max_value"), rule.get("fallback_pattern"))
                 if not value and rule.get("body_fallback_pattern") and text == body_string:
                     value = _extract_max_pattern(body_string, rule.get("body_fallback_pattern"), rule.get("max_value"))
+            elif rule_type == "sum_pattern":
+                chunks = re.split(r'\n\n(?=\[[^\]]+\.(?:pdf|xlsx?|pptx?|zip|txt|docx?|csv|msg|eml)\]\n)', text) if rule.get("per_file") else [text]
+                if rule.get("year_anchored"):
+                    sums = [_find_year_table_sum(c, rule.get("max_value")) for c in chunks]
+                else:
+                    sums = [_extract_sum_pattern(c, rule.get("pattern", ""), rule.get("max_value"), rule.get("fallback_pattern")) for c in chunks]
+                value = next((s for s in sums if s), "")
             elif rule_type == "keyword_match":
-                value = _keyword_match(text, rule.get("values", []), debug_field=field)
+                value = _keyword_match(text, rule.get("values", []))
             elif rule_type == "email_domain":
                 value = _extract_supplier_from_body(body_string)
                 if not value and rule.get("fallback_type") == "label":
@@ -157,6 +225,12 @@ def apply_extraction_rules(
                     value = ""
             if value:
                 break
+
+        if not value and rule_type == "label" and rule.get("regex_fallback") and rule.get("regex_fallback_body_first"):
+            for rb_text in [body_string, attachment_string]:
+                value = _extract_regex(rb_text, rule.get("regex_fallback"))
+                if value:
+                    break
 
         if not value:
             value = rule.get("default", "")

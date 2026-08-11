@@ -21,7 +21,7 @@
     "type": "keyword_match",
     "values": ["HUD", "DS"],
     "default": "n/a",
-    "source_priority": "both"
+    "source_priority": "body"
   },
   "phase": {
     "type": "keyword_match",
@@ -43,9 +43,10 @@
     "source_priority": "both"
   },
   "lifetime_volume": {
-    "type": "label",
-    "labels": ["Total （pcs)", "Total (pcs)", "Lifetime Volume"],
-    "pattern": "[\\d,]+",
+    "type": "sum_pattern",
+    "year_anchored": true,
+    "max_value": 2000000,
+    "per_file": true,
     "default": "",
     "source_priority": "attachment"
   },
@@ -61,6 +62,9 @@
   "size": {
     "type": "label",
     "labels": ["Display diagonal (info)", "Display diagonal", "Display Diagonal"],
+    "pattern": "\\d+\\.?\\d*(?!\\s*mm)",
+    "regex_fallback": "\\b(?:[4-9]|1[0-9]|2[0-4])(?:\\.\\d+)?(?=\\s*(?:[\"\u201C\u201D\u2033]|inch(?:es)?))",
+    "regex_fallback_body_first": true,
     "default": "",
     "source_priority": "both"
   },
@@ -160,9 +164,10 @@
   "org_currency": {
     "type": "label",
     "labels": ["Currency"],
-    "pattern": "[A-Z]{3}",
+    "pattern": "CNY|EUR|USD|RMB|GBP|JPY|HKD",
+    "regex_fallback": "(?<=\\[)(CNY|EUR|USD|RMB|GBP|JPY|HKD)(?=\\])",
     "default": "",
-    "source_priority": "attachment"
+    "source_priority": "both"
   },
   "price_in_pcis": {
     "type": "empty",
@@ -209,7 +214,7 @@
     "type": "regex",
     "pattern": "\\d+[,.]?\\d*\\s*cd/m2",
     "default": "",
-    "source_priority": "attachment"
+    "source_priority": "both"
   },
   "no_of_drivers": {
     "type": "label",
