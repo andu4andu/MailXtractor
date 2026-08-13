@@ -97,9 +97,11 @@ def parse_xlsx(path: str) -> str:
             continue
         text += f"[Sheet: {sheet.title}]\n"
         for row in sheet.iter_rows(values_only=True):
-            cells = [_cell_str(cell) for cell in row if cell is not None and _cell_str(cell).strip()]
-            if cells:
-                text += " | ".join(cells) + "\n"
+            str_cells = [_cell_str(c) if c is not None else "" for c in row]
+            while str_cells and not str_cells[-1].strip():
+                str_cells.pop()
+            if any(c.strip() for c in str_cells):
+                text += " | ".join(str_cells) + "\n"
     print(f"  [PARSE XLSX] extracted {len(text)} characters")
     return text.strip()
 

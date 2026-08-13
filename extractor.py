@@ -9,12 +9,33 @@ def load_rules(rules_path: str) -> dict:
         return json.load(f)
 
 
-def _extract_label(text: str, labels: list, pattern: str = None, max_length: int = 100, line_start: bool = False, next_line: bool = False) -> str:
+def _extract_label(text: str, labels: list, pattern: str = None, max_length: int = 100, line_start: bool = False, next_line: bool = False, collect_lines_pattern: str = None) -> str:
     for label in labels:
         escaped = re.escape(label)
         prefix = r"(?:^|\n)" if line_start else r""
+
+        if collect_lines_pattern:
+            for lm in re.finditer(rf"{prefix}{escaped}", text, re.IGNORECASE | re.MULTILINE):
+                rest = text[lm.end():]
+                lines = rest.split("\n")
+                collected = []
+                for i, line in enumerate(lines):
+                    stripped = line.strip()
+                    if i == 0:
+                        stripped = re.sub(r'^[:\|\s]+', '', stripped)
+                    if re.match(collect_lines_pattern, stripped, re.IGNORECASE):
+                        cleaned = re.sub(r'[\s|]+$', '', stripped)
+                        content = re.sub(r'^\d+\)\s*', '', cleaned).strip()
+                        if content:
+                            collected.append(cleaned)
+                    elif collected:
+                        break
+                if collected:
+                    return "; ".join(collected)
+            continue
+
         match = re.search(
-            rf"{prefix}{escaped}[^|\n]*?[:\|]\s*([^\n]+)",
+            rf"{prefix}{escaped}[^|\n]*?[:\|][^\S\n]*([^\n]+)",
             text,
             re.IGNORECASE | re.MULTILINE
         )
@@ -25,7 +46,9 @@ def _extract_label(text: str, labels: list, pattern: str = None, max_length: int
             if not value:
                 continue
             if pattern:
-                pm = re.search(pattern, value)
+                cleaned = re.sub(r'\s*\([A-Za-z]\)\s*|(?<=\d)(?:mm|cm|in)\b', ' ', value)
+                cleaned = ' '.join(cleaned.split())
+                pm = re.search(pattern, cleaned)
                 return pm.group(0).strip() if pm else ""
             return value[:max_length].strip()
 
@@ -33,12 +56,12 @@ def _extract_label(text: str, labels: list, pattern: str = None, max_length: int
             lm = re.search(rf"{prefix}{escaped}", text, re.IGNORECASE | re.MULTILINE)
             if lm:
                 rest = text[lm.end():]
-                parts = rest.split("\n", 2)
-                next_line_text = parts[1] if len(parts) > 1 else ""
-                if next_line_text:
-                    matches = re.findall(pattern, next_line_text, re.IGNORECASE)
-                    if matches:
-                        return matches[-1].strip()
+                lines_after = rest.split("\n")[1:]
+                for line in lines_after[:5]:
+                    if line.strip():
+                        matches = re.findall(pattern, line, re.IGNORECASE)
+                        if matches:
+                            return matches[-1].strip()
     return ""
 
 
@@ -59,11 +82,15 @@ def _extract_supplier_from_body(body: str) -> str:
     return ""
 
 
-def _keyword_match(text: str, values: list) -> str:
+def _keyword_match(text: str, values: list, aliases: dict = None) -> str:
     for value in values:
         match = re.search(rf"\b{re.escape(value)}\b", text, re.IGNORECASE)
         if match:
             return value
+    if aliases:
+        for alias, canonical in aliases.items():
+            if re.search(rf"\b{re.escape(alias)}\b", text, re.IGNORECASE):
+                return canonical
     return ""
 
 
@@ -161,6 +188,34 @@ def _extract_max_pattern(text: str, pattern: str, max_value: int = None, fallbac
     return result
 
 
+def _extract_column_values(text: str, labels: list) -> str:
+    for label in labels:
+        escaped = re.escape(label)
+        for m in re.finditer(rf'\b{escaped}\b', text, re.IGNORECASE):
+            line_start = text.rfind('\n', 0, m.start()) + 1
+            line_end = text.find('\n', m.end())
+            if line_end == -1:
+                line_end = len(text)
+            header_line = text[line_start:line_end]
+            cols = [c.strip() for c in header_line.split(' | ')]
+            col_idx = next((i for i, c in enumerate(cols) if re.search(rf'\b{escaped}\b', c, re.IGNORECASE)), None)
+            if col_idx is None:
+                continue
+            rest = text[line_end + 1:]
+            values = []
+            for row_line in rest.split('\n'):
+                if not row_line.strip() or row_line.startswith('['):
+                    break
+                row_cols = [c.strip() for c in row_line.split(' | ')]
+                if col_idx < len(row_cols):
+                    val = row_cols[col_idx].strip()
+                    if val and re.search(r'[a-zA-Z]', val):
+                        values.append(val)
+            if values:
+                return '; '.join(values)
+    return ''
+
+
 def apply_extraction_rules(
     body_string: str,
     attachment_string: str,
@@ -194,9 +249,11 @@ def apply_extraction_rules(
         value = ""
         for text in sources:
             if rule_type == "label":
-                value = _extract_label(text, rule.get("labels", []), rule.get("pattern"), line_start=rule.get("line_start", False), next_line=rule.get("next_line", False))
+                value = _extract_label(text, rule.get("labels", []), rule.get("pattern"), line_start=rule.get("line_start", False), next_line=rule.get("next_line", False), collect_lines_pattern=rule.get("collect_lines_pattern"))
                 if value and rule.get("normalize_boolean"):
                     value = _normalize_boolean(value)
+                if not value and rule.get("column_values"):
+                    value = _extract_column_values(text, rule.get("labels", []))
                 if not value and rule.get("regex_fallback") and not rule.get("regex_fallback_body_first"):
                     value = _extract_regex(text, rule.get("regex_fallback"))
             elif rule_type == "regex":
@@ -213,7 +270,7 @@ def apply_extraction_rules(
                     sums = [_extract_sum_pattern(c, rule.get("pattern", ""), rule.get("max_value"), rule.get("fallback_pattern")) for c in chunks]
                 value = next((s for s in sums if s), "")
             elif rule_type == "keyword_match":
-                value = _keyword_match(text, rule.get("values", []))
+                value = _keyword_match(text, rule.get("values", []), rule.get("aliases"))
             elif rule_type == "email_domain":
                 value = _extract_supplier_from_body(body_string)
                 if not value and rule.get("fallback_type") == "label":
