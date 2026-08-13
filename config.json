@@ -1,0 +1,7 @@
+{
+    "input_path": "C:\\Users\\uik11822\\Downloads\\301_Contract_Ingestion_AP\\301_Contract_Ingestion_AP\\Input",
+    "output_dir": "C:\\Users\\uik11822\\Downloads",
+    "tesseract_path": "C:\\Users\\uik11822\\OCR\\tesseract.exe",
+    "internal_domains": ["continental", "aumovio"],
+    "skip_sheets": ["RM_Catalog", "RM_Attribute", "BExRepository", "Drop Downs", "Instructions", "Explanation"]
+}

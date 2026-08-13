@@ -27,7 +27,7 @@ def _extract_label(text: str, labels: list, pattern: str = None, max_length: int
                         cleaned = re.sub(r'[\s|]+$', '', stripped)
                         content = re.sub(r'^\d+\)\s*', '', cleaned).strip()
                         if content:
-                            collected.append(cleaned)
+                            collected.append(content)
                     elif collected:
                         break
                 if collected:
@@ -70,7 +70,9 @@ def _extract_regex(text: str, pattern: str) -> str:
     return match.group(0).strip() if match else ""
 
 
-INTERNAL_DOMAINS = ("continental", "aumovio")
+import json as _json
+with open("config.json", encoding="utf-8") as _f:
+    INTERNAL_DOMAINS = tuple(_json.load(_f)["internal_domains"])
 
 
 def _extract_supplier_from_body(body: str) -> str:
@@ -272,13 +274,10 @@ def apply_extraction_rules(
             elif rule_type == "keyword_match":
                 value = _keyword_match(text, rule.get("values", []), rule.get("aliases"))
             elif rule_type == "email_domain":
-                value = _extract_supplier_from_body(body_string)
+                value = _extract_supplier_from_body(text)
                 if not value and rule.get("fallback_type") == "label":
-                    for fallback_text in [attachment_string, body_string]:
-                        value = _extract_label(fallback_text, rule.get("labels", []), rule.get("pattern"))
-                        if value:
-                            break
-                if value and any(d in value.lower() for d in ("continental", "aumovio")):
+                    value = _extract_label(text, rule.get("labels", []), rule.get("pattern"))
+                if value and any(d in value.lower() for d in INTERNAL_DOMAINS):
                     value = ""
             if value:
                 break

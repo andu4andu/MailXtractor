@@ -1,17 +1,25 @@
+import json
 import os
 import re
+import time
+import datetime
+from concurrent.futures import ThreadPoolExecutor
 from readers import read_raw_email, extract_body_text
 from attachments import handle_attachments, spawn_attachment_workers, combine_attachment_text
 from extractor import load_rules, apply_extraction_rules, INTERNAL_DOMAINS
 from reporter import generate_excel_report
 
-import datetime
-INPUT_PATH = r"C:\Users\uik11822\Downloads\301_Contract_Ingestion_AP\301_Contract_Ingestion_AP\Input"
+with open("config.json", encoding="utf-8") as _f:
+    CONFIG = json.load(_f)
+
+INPUT_PATH = CONFIG["input_path"]
+INTERNAL_DOMAINS = tuple(CONFIG["internal_domains"])
 RULES_PATH = "rules.json"
+
 
 def get_output_path():
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    return rf"C:\Users\uik11822\Downloads\gold_report_{ts}.xlsx"
+    return os.path.join(CONFIG["output_dir"], f"gold_report_{ts}.xlsx")
 
 
 def _clean_subject(subject: str) -> str:
@@ -71,10 +79,14 @@ def main():
 
     print(f"Found {len(folders)} email folders")
 
-    for folder_path in folders:
-        record = process_email(folder_path, rules)
-        records.append(record)
+    t_start = time.time()
+    with ThreadPoolExecutor() as executor:
+        futures = [(fp, executor.submit(process_email, fp, rules)) for fp in folders]
+        for folder_path, future in futures:
+            records.append(future.result())
+            print(f"  [TIMER] {os.path.basename(folder_path)}")
 
+    print(f"\n[TIMER] Total: {time.time() - t_start:.1f}s for {len(folders)} folders")
     generate_excel_report(records, get_output_path())
 
 

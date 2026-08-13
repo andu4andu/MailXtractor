@@ -9,8 +9,6 @@ def generate_excel_report(records: list, output_path: str) -> None:
 
     for r in successful:
         r.pop("_error", None)
-    for r in failed:
-        pass
 
     df_success = pd.DataFrame(successful)
     df_failed = pd.DataFrame(failed)

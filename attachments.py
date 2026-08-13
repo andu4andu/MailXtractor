@@ -14,7 +14,13 @@ def spawn_attachment_workers(attachments: list) -> list:
             executor.submit(parse_single_attachment, att["path"], att["filename"])
             for att in attachments
         ]
-        results = [future.result() for future in futures]
+        results = []
+        for att, future in zip(attachments, futures):
+            try:
+                results.append(future.result())
+            except Exception as e:
+                print(f"[attachments] Failed to parse '{att['filename']}': {e}")
+                results.append((att["filename"], ""))
     return results
 
 

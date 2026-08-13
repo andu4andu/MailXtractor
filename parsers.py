@@ -1,5 +1,6 @@
 import io
 import os
+import shutil
 import tempfile
 import zipfile
 import openpyxl
@@ -10,7 +11,11 @@ from pptx.enum.shapes import MSO_SHAPE_TYPE
 import pytesseract
 from pdf2image import convert_from_path
 
-pytesseract.pytesseract.tesseract_cmd = r"C:\Users\uik11822\OCR\tesseract.exe"
+import json as _json
+with open("config.json", encoding="utf-8") as _f:
+    _config = _json.load(_f)
+pytesseract.pytesseract.tesseract_cmd = _config["tesseract_path"]
+_SKIP_SHEETS = _config["skip_sheets"]
 
 IMAGE_EXTENSIONS = {".png", ".jpeg", ".jpg", ".bmp", ".tiff"}
 PDF_EXTENSIONS = {".pdf"}
@@ -92,7 +97,7 @@ def parse_xlsx(path: str) -> str:
         if sheet.sheet_state in ("hidden", "veryHidden"):
             print(f"  [PARSE XLSX] skipping hidden sheet: {sheet.title}")
             continue
-        if any(skip in sheet.title for skip in ["RM_Catalog", "RM_Attribute", "BExRepository", "Drop Downs", "Instructions", "Explanation"]):
+        if any(skip in sheet.title for skip in _SKIP_SHEETS):
             print(f"  [PARSE XLSX] skipping reference sheet: {sheet.title}")
             continue
         text += f"[Sheet: {sheet.title}]\n"
@@ -111,19 +116,32 @@ def _is_old_ppt_format(path: str) -> bool:
         return f.read(4) == b"\xD0\xCF\x11\xE0"
 
 
-def _convert_ppt_to_pptx(path: str) -> str:
+def _convert_ppt_to_pptx(path: str, powerpoint=None) -> str:
     import win32com.client
+    import time
     abs_path = os.path.abspath(path)
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pptx")
     temp_path = temp_file.name
     temp_file.close()
     os.remove(temp_path)
-    powerpoint = win32com.client.Dispatch("PowerPoint.Application")
-    powerpoint.Visible = 1
+    owns_instance = powerpoint is None
+    if owns_instance:
+        powerpoint = win32com.client.Dispatch("PowerPoint.Application")
+        powerpoint.Visible = 1
     deck = powerpoint.Presentations.Open(abs_path, WithWindow=False)
     deck.SaveAs(temp_path, 24)
     deck.Close()
-    powerpoint.Quit()
+    if owns_instance:
+        powerpoint.Quit()
+    for _ in range(10):
+        if os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
+            try:
+                with open(temp_path, "rb") as f:
+                    f.read(4)
+                break
+            except (IOError, PermissionError):
+                pass
+        time.sleep(0.5)
     print(f"  [CONVERT PPT] saved to {temp_path}, exists: {os.path.exists(temp_path)}")
     return temp_path
 
@@ -136,13 +154,13 @@ def _iter_shapes(shapes):
             yield shape
 
 
-def parse_ppt(path: str) -> str:
+def parse_ppt(path: str, powerpoint=None) -> str:
     print(f"  [PARSE PPT] {path}")
     converted_path = None
     try:
         if _is_old_ppt_format(path):
             print(f"  [PARSE PPT] old format detected, converting...")
-            converted_path = _convert_ppt_to_pptx(path)
+            converted_path = _convert_ppt_to_pptx(path, powerpoint=powerpoint)
             pptx_path = converted_path
         else:
             pptx_path = path
@@ -179,36 +197,49 @@ def parse_ppt(path: str) -> str:
 
 
 def parse_zip(path: str) -> str:
+    import pythoncom
     print(f"  [PARSE ZIP] {path}")
     text = ""
     temp_dir = tempfile.mkdtemp()
+    powerpoint = None
     try:
         with zipfile.ZipFile(path, "r") as z:
             z.extractall(temp_dir)
-        for root, _, files in os.walk(temp_dir):
-            for filename in files:
-                file_path = os.path.join(root, filename)
-                ext = os.path.splitext(filename)[-1].lower()
-                print(f"  [PARSE ZIP] found {filename}")
-                if ext in PDF_EXTENSIONS:
-                    text += f"[{filename}]\n" + parse_pdf(file_path) + "\n"
-                elif ext in SPREADSHEET_EXTENSIONS:
-                    text += f"[{filename}]\n" + parse_xlsx(file_path) + "\n"
-                elif ext in PRESENTATION_EXTENSIONS:
-                    text += f"[{filename}]\n" + parse_ppt(file_path) + "\n"
-                elif ext in DOCUMENT_EXTENSIONS:
-                    text += f"[{filename}]\n" + parse_txt(file_path) + "\n"
-                elif ext in ZIP_EXTENSIONS:
-                    text += f"[{filename}]\n" + parse_zip(file_path) + "\n"
-                else:
-                    print(f"  [PARSE ZIP] skipping unsupported file: {filename}")
+        all_files = [
+            (os.path.join(root, filename), filename)
+            for root, _, files in os.walk(temp_dir)
+            for filename in files
+        ]
+        needs_ppt = any(
+            os.path.splitext(f)[1].lower() in PRESENTATION_EXTENSIONS
+            and _is_old_ppt_format(fp)
+            for fp, f in all_files
+        )
+        if needs_ppt:
+            import win32com.client
+            pythoncom.CoInitialize()
+            powerpoint = win32com.client.Dispatch("PowerPoint.Application")
+            powerpoint.Visible = 1
+        for file_path, filename in all_files:
+            ext = os.path.splitext(filename)[-1].lower()
+            print(f"  [PARSE ZIP] found {filename}")
+            if ext in PDF_EXTENSIONS:
+                text += f"[{filename}]\n" + parse_pdf(file_path) + "\n"
+            elif ext in SPREADSHEET_EXTENSIONS:
+                text += f"[{filename}]\n" + parse_xlsx(file_path) + "\n"
+            elif ext in PRESENTATION_EXTENSIONS:
+                text += f"[{filename}]\n" + parse_ppt(file_path, powerpoint=powerpoint) + "\n"
+            elif ext in DOCUMENT_EXTENSIONS:
+                text += f"[{filename}]\n" + parse_txt(file_path) + "\n"
+            elif ext in ZIP_EXTENSIONS:
+                text += f"[{filename}]\n" + parse_zip(file_path) + "\n"
+            else:
+                print(f"  [PARSE ZIP] skipping unsupported file: {filename}")
     finally:
-        for root, dirs, files in os.walk(temp_dir, topdown=False):
-            for f in files:
-                os.remove(os.path.join(root, f))
-            for d in dirs:
-                os.rmdir(os.path.join(root, d))
-        os.rmdir(temp_dir)
+        if powerpoint is not None:
+            powerpoint.Quit()
+            pythoncom.CoUninitialize()
+        shutil.rmtree(temp_dir, ignore_errors=True)
     print(f"  [PARSE ZIP] extracted {len(text)} characters")
     return text.strip()
 
