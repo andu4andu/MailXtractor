@@ -1,5 +1,8 @@
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from parsers import parse_single_attachment
+
+logger = logging.getLogger(__name__)
 
 
 def handle_attachments(email_struct: dict) -> list:
@@ -9,7 +12,7 @@ def handle_attachments(email_struct: dict) -> list:
 def spawn_attachment_workers(attachments: list) -> list:
     if not attachments:
         return []
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         futures = [
             executor.submit(parse_single_attachment, att["path"], att["filename"])
             for att in attachments
@@ -17,9 +20,9 @@ def spawn_attachment_workers(attachments: list) -> list:
         results = []
         for att, future in zip(attachments, futures):
             try:
-                results.append(future.result())
+                results.append(future.result(timeout=60))
             except Exception as e:
-                print(f"[attachments] Failed to parse '{att['filename']}': {e}")
+                logger.error("Failed to parse '%s': %s", att['filename'], e)
                 results.append((att["filename"], ""))
     return results
 

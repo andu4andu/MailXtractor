@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import time
@@ -6,37 +7,63 @@ import datetime
 from concurrent.futures import ThreadPoolExecutor
 from readers import read_raw_email, extract_body_text
 from attachments import handle_attachments, spawn_attachment_workers, combine_attachment_text
-from extractor import load_rules, apply_extraction_rules, INTERNAL_DOMAINS
+from extractor import load_rules, apply_extraction_rules
 from reporter import generate_excel_report
+
+logger = logging.getLogger(__name__)
 
 with open("config.json", encoding="utf-8") as _f:
     CONFIG = json.load(_f)
 
-INPUT_PATH = CONFIG["input_path"]
+INPUT_PATH = os.environ.get("MAILXTRACTOR_INPUT", CONFIG["input_path"])
+_OUTPUT_DIR = os.environ.get("MAILXTRACTOR_OUTPUT", CONFIG["output_dir"])
 INTERNAL_DOMAINS = tuple(CONFIG["internal_domains"])
 RULES_PATH = "rules.json"
 
 
 def get_output_path():
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    return os.path.join(CONFIG["output_dir"], f"gold_report_{ts}.xlsx")
+    return os.path.join(_OUTPUT_DIR, f"gold_report_{ts}.xlsx")
+
+
+_RE_CTRL   = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+_RE_FWD    = re.compile(r"^(?:(?:Fw|FW|Re|RE):\s*)+")
+_RE_SEP    = re.compile(r"\s*---.*$")
+_RE_SAMPLE = re.compile(r"\s*-\s*Sample\s*\d+\s*$", re.IGNORECASE)
+_RE_CODE   = re.compile(r"\s*/\s*[A-Z0-9][A-Z0-9\-]+\s*$")
+_RE_SUFFIX = re.compile(r"\s*-\s*[A-Za-z][A-Za-z0-9]+\s*$")
 
 
 def _clean_subject(subject: str) -> str:
-    subject = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", subject).strip()
-    subject = re.sub(r"^(?:(?:Fw|FW|Re|RE):\s*)+", "", subject).strip()
-    subject = re.sub(r"\s*---.*$", "", subject).strip()
-    subject = re.sub(r"\s*-\s*Sample\s*\d+\s*$", "", subject, flags=re.IGNORECASE).strip()
-    subject = re.sub(r"\s*/\s*[A-Z0-9][A-Z0-9\-]+\s*$", "", subject).strip()
-    subject = re.sub(r"\s*-\s*[A-Za-z][A-Za-z0-9]+\s*$", "", subject).strip()
+    subject = _RE_CTRL.sub("", subject).strip()
+    subject = _RE_FWD.sub("", subject).strip()
+    subject = _RE_SEP.sub("", subject).strip()
+    subject = _RE_SAMPLE.sub("", subject).strip()
+    subject = _RE_CODE.sub("", subject).strip()
+    subject = _RE_SUFFIX.sub("", subject).strip()
     return subject
+
+
+def _setup_logging() -> None:
+    fmt = logging.Formatter(
+        "%(asctime)s [%(levelname)-8s] %(name)s - %(message)s",
+        datefmt="%H:%M:%S"
+    )
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+    fh = logging.FileHandler("run_log.txt", encoding="utf-8", mode="w")
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(fmt)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    ch.setFormatter(fmt)
+    root.addHandler(fh)
+    root.addHandler(ch)
 
 
 def process_email(folder_path: str, rules: dict) -> dict:
     folder_name = os.path.basename(folder_path)
-    print(f"\n{'='*60}")
-    print(f"Processing: {folder_name}")
-    print(f"{'='*60}")
+    logger.info("Processing: %s", folder_name)
 
     try:
         email_struct = read_raw_email(folder_path)
@@ -63,7 +90,7 @@ def process_email(folder_path: str, rules: dict) -> dict:
         return extracted
 
     except Exception as e:
-        print(f"  [ERROR] {folder_name}: {e}")
+        logger.error("Failed to process %s: %s", folder_name, e)
         return {"_error": str(e), "folder": folder_name}
 
 
@@ -77,23 +104,23 @@ def main():
         if os.path.isdir(os.path.join(INPUT_PATH, name))
     ]
 
-    print(f"Found {len(folders)} email folders")
+    logger.info("Found %d email folders", len(folders))
 
     t_start = time.time()
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as executor:
         futures = [(fp, executor.submit(process_email, fp, rules)) for fp in folders]
         for folder_path, future in futures:
-            records.append(future.result())
-            print(f"  [TIMER] {os.path.basename(folder_path)}")
+            try:
+                records.append(future.result(timeout=300))
+            except TimeoutError:
+                logger.error("Timed out processing %s — skipping", os.path.basename(folder_path))
+                records.append({"_error": "timeout", "folder": os.path.basename(folder_path)})
+            logger.info("Done: %s", os.path.basename(folder_path))
 
-    print(f"\n[TIMER] Total: {time.time() - t_start:.1f}s for {len(folders)} folders")
+    logger.info("Total: %.1fs for %d folders", time.time() - t_start, len(folders))
     generate_excel_report(records, get_output_path())
 
 
 if __name__ == "__main__":
-    import sys
-    with open("run_log.txt", "w", encoding="utf-8") as log:
-        sys.stdout = log
-        main()
-    sys.stdout = sys.__stdout__
-    print("Done. Check run_log.txt and gold_report.xlsx")
+    _setup_logging()
+    main()

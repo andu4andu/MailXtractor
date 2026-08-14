@@ -1,15 +1,17 @@
 import email
 import extract_msg
+import logging
 import re
 import os
 from html.parser import HTMLParser
 
+logger = logging.getLogger(__name__)
 
 EMAIL_EXTENSIONS = {".eml", ".msg"}
 
 
 def read_raw_email(folder_path: str) -> dict:
-    print(f"\n--- Processing folder: {os.path.basename(folder_path)} ---")
+    logger.info("Processing folder: %s", os.path.basename(folder_path))
 
     email_file = None
     attachments = []
@@ -20,16 +22,16 @@ def read_raw_email(folder_path: str) -> dict:
         if ext in EMAIL_EXTENSIONS:
             if email_file is None:
                 email_file = (file_path, ext)
-                print(f"  [EMAIL FILE] {filename}")
+                logger.debug("Email file: %s", filename)
             else:
-                print(f"  [EMAIL FILE] skipping duplicate: {filename}")
+                logger.warning("Skipping duplicate email file: %s", filename)
         else:
             attachments.append({
                 "filename": filename,
                 "file_type": ext.lstrip("."),
                 "path": file_path,
             })
-            print(f"  [ATTACHMENT] {filename}")
+            logger.debug("Attachment: %s", filename)
 
     subject, sender, recipients, date, body = "", "", "", "", ""
 
@@ -42,33 +44,43 @@ def read_raw_email(folder_path: str) -> dict:
             sender = msg.get("From", "")
             recipients = msg.get("To", "")
             date = msg.get("Date", "")
+            html_fallback = ""
             for part in msg.walk():
                 content_disposition = part.get("Content-Disposition", "")
-                if part.get_content_type() == "text/plain" and "attachment" not in content_disposition:
-                    body = part.get_payload(decode=True).decode("utf-8", errors="ignore")
+                if "attachment" in content_disposition:
+                    continue
+                payload = part.get_payload(decode=True)
+                if not payload:
+                    continue
+                if part.get_content_type() == "text/plain":
+                    body = payload.decode("utf-8", errors="ignore")
                     break
+                if part.get_content_type() == "text/html" and not html_fallback:
+                    html_fallback = payload.decode("utf-8", errors="ignore")
+            if not body and html_fallback:
+                body = html_fallback
 
         elif ext == ".msg":
-            msg = extract_msg.Message(file_path)
-            subject = msg.subject or ""
-            sender = msg.sender or ""
-            recipients = msg.to or ""
-            date = str(msg.date) if msg.date else ""
-            html_body = msg.htmlBody or b""
-            if html_body.strip():
-                body = html_body.decode("utf-8", errors="ignore")
-            else:
-                body = msg.body or ""
-            print(f"  [MSG HTML BODY] {repr(body[:100])}")
+            with extract_msg.Message(file_path) as msg:
+                subject = msg.subject or ""
+                sender = msg.sender or ""
+                recipients = msg.to or ""
+                date = str(msg.date) if msg.date else ""
+                html_body = msg.htmlBody or b""
+                if html_body.strip():
+                    body = html_body.decode("utf-8", errors="ignore")
+                else:
+                    body = msg.body or ""
+            logger.debug("MSG body preview: %s", repr(body[:100]))
 
-        print(f"  [SUBJECT]  {subject}")
-        print(f"  [SENDER]   {sender}")
-        print(f"  [DATE]     {date}")
-        print(f"  [BODY]     {body[:100].strip()}{'...' if len(body) > 100 else ''}")
+        logger.debug("Subject: %s", subject)
+        logger.debug("Sender:  %s", sender)
+        logger.debug("Date:    %s", date)
+        logger.debug("Body:    %.100s%s", body.strip(), "..." if len(body) > 100 else "")
     else:
-        print(f"  [NO EMAIL FILE] attachments only")
+        logger.warning("No email file found in %s — attachments only", os.path.basename(folder_path))
 
-    print(f"  [ATTACHMENTS COUNT] {len(attachments)}")
+    logger.debug("Attachments: %d", len(attachments))
 
     return {
         "subject": subject,
@@ -97,5 +109,5 @@ def extract_body_text(email_struct: dict) -> str:
     stripper = _HTMLStripper()
     stripper.feed(body)
     body = re.sub(r"\s+", " ", stripper.get_text()).strip()
-    print(f"  [BODY TEXT] {body[:100].strip()}{'...' if len(body) > 100 else ''}")
+    logger.debug("Body text: %.100s%s", body.strip(), "..." if len(body) > 100 else "")
     return body

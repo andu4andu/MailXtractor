@@ -74,6 +74,11 @@ import json as _json
 with open("config.json", encoding="utf-8") as _f:
     INTERNAL_DOMAINS = tuple(_json.load(_f)["internal_domains"])
 
+_PER_FILE_SPLIT  = re.compile(r'\n\n(?=\[[^\]]+\.(?:pdf|xlsx?|pptx?|zip|txt|docx?|csv|msg|eml)\]\n)')
+_YEAR_PAT        = re.compile(r'(?<!\d)20[2-3]\d(?!\d)')
+_NUM_PAT         = re.compile(r'[1-9]\d{1,2}(?:,\d{3})+|[1-9]\d{4,6}')
+_ROW_YEAR_PAT    = re.compile(r'(?<!\d)20[2-3]\d(?![\d-])[^\n]*?\|\s*([1-9]\d{1,2}(?:,\d{3})+|[1-9]\d{4,6})')
+
 
 def _extract_supplier_from_body(body: str) -> str:
     emails = re.findall(r"[a-zA-Z0-9._%+\-]+@([a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})", body)
@@ -109,8 +114,6 @@ def _normalize_boolean(value: str) -> str:
 
 
 def _find_year_table_sum(text: str, max_value: int = None) -> str:
-    year_pat = re.compile(r'(?<!\d)20[2-3]\d(?!\d)')
-    num_pat = re.compile(r'[1-9]\d{1,2}(?:,\d{3})+|[1-9]\d{4,6}')
     lines = text.split('\n')
 
     def _collect(nums_found):
@@ -134,60 +137,47 @@ def _find_year_table_sum(text: str, max_value: int = None) -> str:
 
     # Approach 1: column-per-year — row with 2+ year tokens, quantities on next lines
     for i, line in enumerate(lines):
-        if len(year_pat.findall(line)) >= 2:
+        if len(_YEAR_PAT.findall(line)) >= 2:
             for j in range(i + 1, min(i + 6, len(lines))):
                 candidate = lines[j]
-                if len(year_pat.findall(candidate)) >= 2:
+                if len(_YEAR_PAT.findall(candidate)) >= 2:
                     break
-                values = _collect(num_pat.findall(candidate))
+                values = _collect(_NUM_PAT.findall(candidate))
                 if values:
                     return str(int(sum(values)))
 
     # Approach 2: row-per-year — year and quantity on the same line
-    row_pat = re.compile(r'(?<!\d)20[2-3]\d(?![\d-])[^\n]*?\|\s*([1-9]\d{1,2}(?:,\d{3})+|[1-9]\d{4,6})')
-    values = _collect(row_pat.findall(text))
+    values = _collect(_ROW_YEAR_PAT.findall(text))
     if values:
         return str(int(sum(values)))
 
     return ""
 
 
-def _extract_sum_pattern(text: str, pattern: str, max_value: int = None, fallback_pattern: str = None) -> str:
-    def _find_sum(pat):
-        matches = re.findall(pat, text, re.IGNORECASE)
+def _aggregate_pattern(text: str, pattern: str, fn, max_value: int = None, fallback_pattern: str = None) -> str:
+    def _find(pat):
         values = []
-        for m in matches:
+        for m in re.findall(pat, text, re.IGNORECASE):
             try:
                 v = float(m.replace(",", ""))
                 if max_value is None or v <= max_value:
                     values.append(v)
             except ValueError:
                 pass
-        return str(int(sum(values))) if values else ""
+        return str(int(fn(values))) if values else ""
 
-    result = _find_sum(pattern)
+    result = _find(pattern)
     if not result and fallback_pattern:
-        result = _find_sum(fallback_pattern)
+        result = _find(fallback_pattern)
     return result
+
+
+def _extract_sum_pattern(text: str, pattern: str, max_value: int = None, fallback_pattern: str = None) -> str:
+    return _aggregate_pattern(text, pattern, sum, max_value, fallback_pattern)
 
 
 def _extract_max_pattern(text: str, pattern: str, max_value: int = None, fallback_pattern: str = None) -> str:
-    def _find_max(pat):
-        matches = re.findall(pat, text, re.IGNORECASE)
-        values = []
-        for m in matches:
-            try:
-                v = float(m.replace(",", ""))
-                if max_value is None or v <= max_value:
-                    values.append(v)
-            except ValueError:
-                pass
-        return str(int(max(values))) if values else ""
-
-    result = _find_max(pattern)
-    if not result and fallback_pattern:
-        result = _find_max(fallback_pattern)
-    return result
+    return _aggregate_pattern(text, pattern, max, max_value, fallback_pattern)
 
 
 def _extract_column_values(text: str, labels: list) -> str:
@@ -265,7 +255,7 @@ def apply_extraction_rules(
                 if not value and rule.get("body_fallback_pattern") and text == body_string:
                     value = _extract_max_pattern(body_string, rule.get("body_fallback_pattern"), rule.get("max_value"))
             elif rule_type == "sum_pattern":
-                chunks = re.split(r'\n\n(?=\[[^\]]+\.(?:pdf|xlsx?|pptx?|zip|txt|docx?|csv|msg|eml)\]\n)', text) if rule.get("per_file") else [text]
+                chunks = _PER_FILE_SPLIT.split(text) if rule.get("per_file") else [text]
                 if rule.get("year_anchored"):
                     sums = [_find_year_table_sum(c, rule.get("max_value")) for c in chunks]
                 else:
