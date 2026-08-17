@@ -150,7 +150,7 @@
     "type": "email_domain",
     "fallback_type": "label",
     "labels": ["Supplier name", "Supplier Name", "Supplier", "Company Name", "Company", "供应商"],
-    "pattern": "[A-Za-z][\\w\\s,.()+\\-]{2,60}",
+    "pattern": "[A-Za-z][A-Za-z\\s,.()+\\-]{2,60}",
     "default": "Unknown",
     "source_priority": "attachment"
   },

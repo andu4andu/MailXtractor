@@ -112,10 +112,10 @@ def main():
         for folder_path, future in futures:
             try:
                 records.append(future.result(timeout=300))
+                logger.info("Done: %s", os.path.basename(folder_path))
             except TimeoutError:
                 logger.error("Timed out processing %s — skipping", os.path.basename(folder_path))
                 records.append({"_error": "timeout", "folder": os.path.basename(folder_path)})
-            logger.info("Done: %s", os.path.basename(folder_path))
 
     logger.info("Total: %.1fs for %d folders", time.time() - t_start, len(folders))
     generate_excel_report(records, get_output_path())

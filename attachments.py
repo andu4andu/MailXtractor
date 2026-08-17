@@ -20,7 +20,7 @@ def spawn_attachment_workers(attachments: list) -> list:
         results = []
         for att, future in zip(attachments, futures):
             try:
-                results.append(future.result(timeout=60))
+                results.append(future.result(timeout=300))
             except Exception as e:
                 logger.error("Failed to parse '%s': %s", att['filename'], e)
                 results.append((att["filename"], ""))

@@ -264,9 +264,15 @@ def apply_extraction_rules(
             elif rule_type == "keyword_match":
                 value = _keyword_match(text, rule.get("values", []), rule.get("aliases"))
             elif rule_type == "email_domain":
-                value = _extract_supplier_from_body(text)
+                # Intentionally uses body_string directly — email domain search must always
+                # scan the email header/body for sender addresses, not attachment text.
+                # source_priority on this rule type only affects the label fallback below.
+                value = _extract_supplier_from_body(body_string)
                 if not value and rule.get("fallback_type") == "label":
-                    value = _extract_label(text, rule.get("labels", []), rule.get("pattern"))
+                    for fallback_text in [attachment_string, body_string]:
+                        value = _extract_label(fallback_text, rule.get("labels", []), rule.get("pattern"))
+                        if value:
+                            break
                 if value and any(d in value.lower() for d in INTERNAL_DOMAINS):
                     value = ""
             if value:

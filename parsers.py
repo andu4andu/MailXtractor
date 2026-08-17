@@ -136,7 +136,7 @@ def parse_xls(path: str) -> str:
             continue
         text += f"[Sheet: {sheet.name}]\n"
         for row_idx in range(sheet.nrows):
-            str_cells = [_cell_str(sheet.cell_value(row_idx, c)) if sheet.cell_value(row_idx, c) != "" else "" for c in range(sheet.ncols)]
+            str_cells = [_cell_str(sheet.cell_value(row_idx, c)) for c in range(sheet.ncols)]
             while str_cells and not str_cells[-1].strip():
                 str_cells.pop()
             if any(c.strip() for c in str_cells):
@@ -148,7 +148,7 @@ def parse_xls(path: str) -> str:
 def parse_csv(path: str) -> str:
     logger.debug("Parsing CSV: %s", path)
     text = ""
-    with open(path, "r", encoding="utf-8", errors="ignore", newline="") as f:
+    with open(path, "r", encoding="utf-8-sig", errors="ignore", newline="") as f:
         for row in csv.reader(f):
             str_cells = [c.strip() for c in row]
             while str_cells and not str_cells[-1]:
@@ -173,34 +173,66 @@ def _is_old_ppt_format(path: str) -> bool:
         return f.read(4) == b"\xD0\xCF\x11\xE0"
 
 
-def _convert_ppt_to_pptx(path: str, powerpoint=None) -> str:
+def _extract_text_via_com(path: str, powerpoint=None) -> str:
     import win32com.client
-    import time
     abs_path = os.path.abspath(path)
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pptx")
-    temp_path = temp_file.name
-    temp_file.close()
-    os.remove(temp_path)
     owns_instance = powerpoint is None
     if owns_instance:
+        import pythoncom
+        pythoncom.CoInitialize()
         powerpoint = win32com.client.Dispatch("PowerPoint.Application")
         powerpoint.Visible = 1
-    deck = powerpoint.Presentations.Open(abs_path, WithWindow=False)
-    deck.SaveAs(temp_path, 24)
-    deck.Close()
-    if owns_instance:
-        powerpoint.Quit()
-    for _ in range(10):
-        if os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
+    try:
+        deck = powerpoint.Presentations.Open(abs_path, WithWindow=False)
+        text = ""
+        for i in range(1, deck.Slides.Count + 1):
+            text += f"[Slide {i}]\n"
+            slide = deck.Slides(i)
+            for j in range(1, slide.Shapes.Count + 1):
+                shape = slide.Shapes(j)
+                try:
+                    if shape.HasTextFrame:
+                        shape_text = shape.TextFrame.TextRange.Text.strip()
+                        if shape_text:
+                            text += shape_text + "\n"
+                    if shape.HasTable:
+                        table = shape.Table
+                        for r in range(1, table.Rows.Count + 1):
+                            row_cells = [
+                                table.Cell(r, c).Shape.TextFrame.TextRange.Text.strip()
+                                for c in range(1, table.Columns.Count + 1)
+                            ]
+                            row_text = " | ".join(row_cells)
+                            if row_text.strip("|").strip():
+                                text += row_text + "\n"
+                    if shape.Type in (11, 13):  # msoLinkedPicture, msoPicture
+                        img_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+                        try:
+                            shape.Export(img_path, 2)  # 2 = ppShapeFormatPNG
+                            with Image.open(img_path) as img:
+                                ocr_text = pytesseract.image_to_string(img.copy()).strip()
+                            if ocr_text:
+                                logger.debug("OCR on image in slide %d (old PPT)", i)
+                                text += ocr_text + "\n"
+                        finally:
+                            if os.path.exists(img_path):
+                                os.remove(img_path)
+                except Exception:
+                    pass
+        deck.Close()
+        logger.debug("COM extracted %d characters from old PPT: %s", len(text), os.path.basename(path))
+        return text.strip()
+    except Exception as e:
+        logger.warning("COM text extraction failed for %s: %s", os.path.basename(path), e)
+        return ""
+    finally:
+        if owns_instance:
+            powerpoint.Quit()
             try:
-                with open(temp_path, "rb") as f:
-                    f.read(4)
-                break
-            except (IOError, PermissionError):
+                import pythoncom
+                pythoncom.CoUninitialize()
+            except Exception:
                 pass
-        time.sleep(0.5)
-    logger.debug("Converted PPT saved to %s (exists: %s)", temp_path, os.path.exists(temp_path))
-    return temp_path
 
 
 def _iter_shapes(shapes):
@@ -213,19 +245,13 @@ def _iter_shapes(shapes):
 
 def parse_ppt(path: str, powerpoint=None) -> str:
     logger.debug("Parsing PPT: %s", path)
-    converted_path = None
+    if _is_old_ppt_format(path):
+        logger.debug("Old binary PPT format, extracting via COM directly: %s", path)
+        return _extract_text_via_com(path, powerpoint)
     try:
-        if _is_old_ppt_format(path):
-            logger.debug("Old PPT format detected, converting: %s", path)
-            converted_path = _convert_ppt_to_pptx(path, powerpoint=powerpoint)
-            pptx_path = converted_path
-        else:
-            pptx_path = path
-        prs = Presentation(pptx_path)
+        prs = Presentation(path)
     except Exception as e:
-        logger.error("Failed to open PPT %s: %s", path, e)
-        if converted_path and os.path.exists(converted_path):
-            os.remove(converted_path)
+        logger.warning("Could not open PPTX %s: %s", os.path.basename(path), e)
         return ""
     text = ""
     for slide_num, slide in enumerate(prs.slides, start=1):
@@ -247,8 +273,6 @@ def parse_ppt(path: str, powerpoint=None) -> str:
                 if ocr_text:
                     logger.debug("OCR on image in slide %d", slide_num)
                     text += ocr_text + "\n"
-    if converted_path and os.path.exists(converted_path):
-        os.remove(converted_path)
     logger.debug("PPT extracted %d characters", len(text))
     return text.strip()
 
@@ -279,12 +303,15 @@ def parse_zip(path: str, depth: int = 0) -> str:
             elif ext in SPREADSHEET_EXTENSIONS:
                 text += f"[{filename}]\n" + parse_spreadsheet(file_path) + "\n"
             elif ext in PRESENTATION_EXTENSIONS:
-                if ext == ".ppt" and powerpoint is None and _is_old_ppt_format(file_path):
-                    import win32com.client
-                    pythoncom.CoInitialize()
-                    com_initialized = True
-                    powerpoint = win32com.client.Dispatch("PowerPoint.Application")
-                    powerpoint.Visible = 1
+                if powerpoint is None and _is_old_ppt_format(file_path):
+                    try:
+                        import win32com.client
+                        pythoncom.CoInitialize()
+                        com_initialized = True
+                        powerpoint = win32com.client.Dispatch("PowerPoint.Application")
+                        powerpoint.Visible = 1
+                    except Exception as e:
+                        logger.warning("Could not start PowerPoint for COM conversion: %s", e)
                 text += f"[{filename}]\n" + parse_ppt(file_path, powerpoint=powerpoint) + "\n"
             elif ext in DOCUMENT_EXTENSIONS:
                 text += f"[{filename}]\n" + parse_txt(file_path) + "\n"

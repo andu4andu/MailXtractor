@@ -6,6 +6,7 @@ import os
 from html.parser import HTMLParser
 
 logger = logging.getLogger(__name__)
+logging.getLogger("extract_msg").setLevel(logging.ERROR)
 
 EMAIL_EXTENSIONS = {".eml", ".msg"}
 
@@ -54,7 +55,8 @@ def read_raw_email(folder_path: str) -> dict:
                     continue
                 if part.get_content_type() == "text/plain":
                     body = payload.decode("utf-8", errors="ignore")
-                    break
+                    if body:
+                        break
                 if part.get_content_type() == "text/html" and not html_fallback:
                     html_fallback = payload.decode("utf-8", errors="ignore")
             if not body and html_fallback:
