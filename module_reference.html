@@ -1,0 +1,1838 @@
+<title>MailXtractor Reference</title>
+<style>
+:root {
+  --bg: #F5F7FB;
+  --surface: #FFFFFF;
+  --border: #DDE3F0;
+  --accent: #0E6655;
+  --accent-light: #E4F4EF;
+  --text-primary: #1A1D2E;
+  --text-secondary: #626880;
+  --fn-border: #0E6655;
+  --sig-bg: #EEF5F2;
+  --param-bg: #F8F9FC;
+  --tag-public-bg: #E4F4EF;
+  --tag-public-text: #0A5244;
+  --tag-private-bg: #EEEEF8;
+  --tag-private-text: #4A4E70;
+  --sidebar-width: 255px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151F;
+    --surface: #1A1E2E;
+    --border: #252B42;
+    --accent: #2DD4AA;
+    --accent-light: #0D2820;
+    --text-primary: #E2E8F5;
+    --text-secondary: #8A93B2;
+    --fn-border: #2DD4AA;
+    --sig-bg: #1A2830;
+    --param-bg: #161928;
+    --tag-public-bg: #0D2820;
+    --tag-public-text: #2DD4AA;
+    --tag-private-bg: #1E1E34;
+    --tag-private-text: #8A93B2;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #12151F;
+  --surface: #1A1E2E;
+  --border: #252B42;
+  --accent: #2DD4AA;
+  --accent-light: #0D2820;
+  --text-primary: #E2E8F5;
+  --text-secondary: #8A93B2;
+  --fn-border: #2DD4AA;
+  --sig-bg: #1A2830;
+  --param-bg: #161928;
+  --tag-public-bg: #0D2820;
+  --tag-public-text: #2DD4AA;
+  --tag-private-bg: #1E1E34;
+  --tag-private-text: #8A93B2;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  line-height: 1.65;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: var(--sidebar-width);
+  background: #161B2C;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+
+.sidebar-header {
+  padding: 1.5rem 1.25rem 1rem;
+  border-bottom: 1px solid #252B40;
+}
+
+.sidebar-brand {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #E2E8F5;
+  margin-bottom: 0.2rem;
+}
+
+.sidebar-subtitle {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #4A5580;
+}
+
+.sidebar-nav { padding: 0.75rem 0 2rem; flex: 1; }
+
+.sidebar-module-name {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #2DD4AA;
+  padding: 0.75rem 1.25rem 0.3rem;
+}
+
+.sidebar-module-name a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.sidebar-module-name a:hover { color: #7FEAD8; }
+
+.sidebar a.fn-link {
+  display: block;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  color: #7A87A8;
+  text-decoration: none;
+  padding: 0.22rem 1.25rem 0.22rem 1.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.12s, background 0.12s;
+}
+
+.sidebar a.fn-link:hover {
+  color: #E2E8F5;
+  background: rgba(255,255,255,0.04);
+}
+
+.sidebar a.fn-link.active {
+  color: #E2E8F5;
+  background: rgba(45, 212, 170, 0.08);
+  border-left: 2px solid #2DD4AA;
+  padding-left: calc(1.75rem - 2px);
+}
+
+.sidebar-module-name a.active { color: #7FEAD8; }
+
+.sidebar a.glossary-link.active { color: #7A87A8; }
+
+.sidebar-divider {
+  height: 1px;
+  background: #252B40;
+  margin: 0.5rem 1.25rem;
+}
+
+.sidebar a.glossary-link {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4A5580;
+  text-decoration: none;
+  padding: 0.75rem 1.25rem;
+  transition: color 0.12s;
+}
+
+.sidebar a.glossary-link:hover { color: #7A87A8; }
+
+.sidebar::-webkit-scrollbar { width: 3px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: #2A3250; border-radius: 2px; }
+
+/* ── Content ── */
+.content {
+  margin-left: var(--sidebar-width);
+  padding: 2.5rem 3rem 4rem;
+  max-width: calc(var(--sidebar-width) + 860px);
+}
+
+/* ── Page header ── */
+.page-header {
+  margin-bottom: 3rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.page-header h1 {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.page-header p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  max-width: 580px;
+  line-height: 1.7;
+}
+
+/* ── Module sections ── */
+.module-section { margin-bottom: 4rem; scroll-margin-top: 1.5rem; }
+
+.module-header {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--border);
+}
+
+.module-filename {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.module-tagline {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* ── Group labels ── */
+.group-label {
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin: 1.75rem 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.group-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── Function cards ── */
+.fn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--fn-border);
+  border-radius: 0 8px 8px 0;
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  scroll-margin-top: 1.5rem;
+}
+
+.fn-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+
+.fn-sig {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.87rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--sig-bg);
+  padding: 0.25rem 0.65rem;
+  border-radius: 4px;
+}
+
+.tag {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.tag-public     { background: var(--tag-public-bg);  color: var(--tag-public-text); }
+.tag-private    { background: var(--tag-private-bg); color: var(--tag-private-text); }
+.tag-entrypoint { background: #FEF3C7; color: #92400E; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tag-entrypoint { background: #2D1F00; color: #FCD34D; }
+}
+:root[data-theme="dark"] .tag-entrypoint { background: #2D1F00; color: #FCD34D; }
+
+.fn-summary {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.75;
+  margin-bottom: 1rem;
+}
+
+.section-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+
+.fn-params { margin-bottom: 1rem; }
+
+.param-row {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 0.75rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.83rem;
+  align-items: start;
+}
+
+.param-row:last-child { border-bottom: none; }
+
+.param-name {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  color: var(--text-primary);
+  font-weight: 500;
+  padding-top: 0.05rem;
+}
+
+.param-desc { color: var(--text-secondary); line-height: 1.6; }
+
+.fn-returns { font-size: 0.83rem; }
+.fn-returns .section-label { margin-bottom: 0.3rem; }
+.fn-returns p { color: var(--text-secondary); line-height: 1.6; }
+
+/* ── Extra card components ── */
+.output-preview, .pipeline-box {
+  background: var(--param-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin-top: 1rem;
+  font-size: 0.83rem;
+}
+
+.output-preview .section-label,
+.pipeline-box .section-label { margin-bottom: 0.6rem; }
+
+.output-row, .pipeline-step {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--border);
+  align-items: start;
+}
+
+.output-row { grid-template-columns: 160px 1fr; }
+.pipeline-step { grid-template-columns: 1.5rem 1fr; }
+
+.output-row:last-child,
+.pipeline-step:last-child { border-bottom: none; }
+
+.output-key {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.output-val, .step-desc {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.step-num {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent);
+  padding-top: 0.05rem;
+}
+
+.strip {
+  display: inline-block;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  background: var(--sig-bg);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+}
+
+/* ── Glossary ── */
+.glossary-section {
+  margin-top: 2rem;
+  scroll-margin-top: 1.5rem;
+}
+
+.glossary-section h2 {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--border);
+}
+
+.glossary-section p.glossary-intro {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  line-height: 1.7;
+}
+
+.glossary-entry {
+  border-bottom: 1px solid var(--border);
+  padding: 0.85rem 0;
+}
+
+.glossary-entry:last-child { border-bottom: none; }
+
+.glossary-term {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.3rem;
+}
+
+.glossary-def {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+/* ── Responsive ── */
+@media (max-width: 780px) {
+  .sidebar { position: static; width: 100%; height: auto; }
+  .content { margin-left: 0; padding: 1.5rem 1.25rem 3rem; max-width: 100%; }
+  .param-row { grid-template-columns: 1fr; gap: 0.15rem; }
+  .output-row { grid-template-columns: 1fr; gap: 0.15rem; }
+}
+</style>
+
+<!-- ── Sidebar ── -->
+<nav class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-brand">MailXtractor</div>
+    <div class="sidebar-subtitle">Module Reference</div>
+  </div>
+  <div class="sidebar-nav">
+
+    <div class="sidebar-module-name"><a href="#module-readers">readers.py</a></div>
+    <a class="fn-link" href="#readers-read-raw-email">read_raw_email</a>
+    <a class="fn-link" href="#readers-extract-body-text">extract_body_text</a>
+    <a class="fn-link" href="#readers-html-stripper">_HTMLStripper</a>
+
+    <div class="sidebar-module-name"><a href="#module-attachments">attachments.py</a></div>
+    <a class="fn-link" href="#attachments-handle">handle_attachments</a>
+    <a class="fn-link" href="#attachments-spawn">spawn_attachment_workers</a>
+    <a class="fn-link" href="#attachments-combine">combine_attachment_text</a>
+
+    <div class="sidebar-module-name"><a href="#module-parsers">parsers.py</a></div>
+    <a class="fn-link" href="#parsers-parse-pdf">parse_pdf</a>
+    <a class="fn-link" href="#parsers-parse-xlsx">parse_xlsx</a>
+    <a class="fn-link" href="#parsers-parse-xls">parse_xls</a>
+    <a class="fn-link" href="#parsers-parse-csv">parse_csv</a>
+    <a class="fn-link" href="#parsers-parse-spreadsheet">parse_spreadsheet</a>
+    <a class="fn-link" href="#parsers-parse-ppt">parse_ppt</a>
+    <a class="fn-link" href="#parsers-parse-zip">parse_zip</a>
+    <a class="fn-link" href="#parsers-parse-txt">parse_txt</a>
+    <a class="fn-link" href="#parsers-parse-single">parse_single_attachment</a>
+    <a class="fn-link" href="#parsers-join-cell">_join_cell</a>
+    <a class="fn-link" href="#parsers-cell-str">_cell_str</a>
+    <a class="fn-link" href="#parsers-is-old-ppt">_is_old_ppt_format</a>
+    <a class="fn-link" href="#parsers-extract-com">_extract_text_via_com</a>
+    <a class="fn-link" href="#parsers-iter-shapes">_iter_shapes</a>
+
+    <div class="sidebar-module-name"><a href="#module-extractor">extractor.py</a></div>
+    <a class="fn-link" href="#extractor-load-rules">load_rules</a>
+    <a class="fn-link" href="#extractor-apply-rules">apply_extraction_rules</a>
+    <a class="fn-link" href="#extractor-extract-label">_extract_label</a>
+    <a class="fn-link" href="#extractor-extract-regex">_extract_regex</a>
+    <a class="fn-link" href="#extractor-extract-supplier">_extract_supplier_from_body</a>
+    <a class="fn-link" href="#extractor-keyword-match">_keyword_match</a>
+    <a class="fn-link" href="#extractor-normalize-bool">_normalize_boolean</a>
+    <a class="fn-link" href="#extractor-year-table-sum">_find_year_table_sum</a>
+    <a class="fn-link" href="#extractor-aggregate-pattern">_aggregate_pattern</a>
+    <a class="fn-link" href="#extractor-sum-pattern">_extract_sum_pattern</a>
+    <a class="fn-link" href="#extractor-max-pattern">_extract_max_pattern</a>
+    <a class="fn-link" href="#extractor-column-values">_extract_column_values</a>
+
+    <div class="sidebar-module-name"><a href="#module-reporter">reporter.py</a></div>
+    <a class="fn-link" href="#reporter-generate">generate_excel_report</a>
+    <a class="fn-link" href="#reporter-style">_style_sheet</a>
+
+    <div class="sidebar-module-name"><a href="#module-main">main.py</a></div>
+    <a class="fn-link" href="#main-main">main</a>
+    <a class="fn-link" href="#main-process-email">process_email</a>
+    <a class="fn-link" href="#main-get-output-path">get_output_path</a>
+    <a class="fn-link" href="#main-setup-logging">_setup_logging</a>
+    <a class="fn-link" href="#main-clean-subject">_clean_subject</a>
+
+    <div class="sidebar-divider"></div>
+    <a class="glossary-link" href="#glossary">Glossary</a>
+  </div>
+</nav>
+
+<!-- ── Content ── -->
+<main class="content">
+
+  <div class="page-header">
+    <h1>Module Reference</h1>
+    <p>All functions across the MailXtractor codebase, organised by module in pipeline order — from reading the email to writing the final report.</p>
+  </div>
+
+  <!-- ════════════════════════════════════════ READERS ════ -->
+  <section class="module-section" id="module-readers">
+    <div class="module-header">
+      <span class="module-filename">readers.py</span>
+      <span class="module-tagline">Stage 1 — Email reading and body extraction</span>
+    </div>
+
+    <div class="group-label">Public</div>
+
+    <div class="fn" id="readers-read-raw-email">
+      <div class="fn-header">
+        <span class="fn-sig">read_raw_email(folder_path)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Scans an email folder and returns all of its contents as a structured
+        dict. The folder is expected to contain exactly one email file
+        (<code>.eml</code> or <code>.msg</code>) and any number of sidecar
+        attachment files alongside it.<br><br>
+        The function iterates the folder's contents in sorted order. The
+        first email file found becomes the email to parse; any further email
+        files are logged as warnings and skipped. Every non-email file is
+        collected as an attachment regardless of its extension.<br><br>
+        <strong>.eml files</strong> are parsed with Python's built-in
+        <code>email</code> module. An email is made up of multiple parts
+        (body, attachments, etc.) and the function walks through all of
+        them, preferring plain text for the body and falling back to HTML
+        if no plain text part exists. Parts marked as attachments in their
+        headers are skipped during body extraction — they are handled as
+        sidecar files instead.<br><br>
+        <strong>.msg files</strong> are parsed with the
+        <code>extract_msg</code> library, opened in a way that
+        automatically closes the file when done to prevent file handle leaks.
+        The function prefers the HTML body when it contains content, falling
+        back to the plain text body.<br><br>
+        If no email file is found at all (an attachments-only folder), a
+        warning is logged and the email metadata fields are all returned
+        as empty strings.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">folder_path</span>
+          <span class="param-desc">Absolute path to the folder representing one email. The folder name is used downstream as the correlation ID.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Dict with keys: <code>subject</code>, <code>sender</code>, <code>recipients</code>, <code>date</code>, <code>body</code> (raw HTML or plain text), and <code>attachments</code> (list of dicts, each with <code>filename</code>, <code>file_type</code>, and <code>path</code>).</p>
+      </div>
+    </div>
+
+    <div class="fn" id="readers-extract-body-text">
+      <div class="fn-header">
+        <span class="fn-sig">extract_body_text(email_struct)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Converts the raw body from an email struct into clean plain text.
+        The body may be HTML or already plain text. Either way, the
+        function passes it through <code>_HTMLStripper</code>, which extracts
+        only the visible text content and discards all tags and attributes.
+        The resulting string then has all runs of whitespace collapsed to a
+        single space and is stripped of leading and trailing whitespace.<br><br>
+        This normalised string is what gets prepended with the email header
+        block in <code>process_email</code> to form the full
+        <code>body_string</code> passed to the extraction engine.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">email_struct</span>
+          <span class="param-desc">Dict returned by <code>read_raw_email</code>. Only the <code>body</code> key is read.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Plain text string with HTML tags removed and all whitespace normalised to single spaces.</p>
+      </div>
+    </div>
+
+    <div class="group-label">Internal Helpers</div>
+
+    <div class="fn" id="readers-html-stripper">
+      <div class="fn-header">
+        <span class="fn-sig">_HTMLStripper</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        A minimal HTML parser used internally by <code>extract_body_text</code>.
+        Extends Python's built-in HTML parser and collects every piece of
+        visible text content while silently discarding all tags, attributes,
+        scripts, and styles.<br><br>
+        After feeding the HTML string in, <code>get_text()</code> joins
+        all collected parts with a single space and returns the result.
+        This avoids any external dependency for what is a straightforward
+        stripping task.
+      </p>
+      <div class="fn-returns">
+        <div class="section-label">Key methods</div>
+        <p>
+          <code>handle_data(data)</code> — called automatically for each piece of visible text; appends it to an internal list.<br>
+          <code>get_text()</code> — joins all collected pieces with a space and returns the full text string.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════ ATTACHMENTS ════ -->
+  <section class="module-section" id="module-attachments">
+    <div class="module-header">
+      <span class="module-filename">attachments.py</span>
+      <span class="module-tagline">Stage 2 — Attachment dispatching and text assembly</span>
+    </div>
+
+    <div class="group-label">Public</div>
+
+    <div class="fn" id="attachments-handle">
+      <div class="fn-header">
+        <span class="fn-sig">handle_attachments(email_struct)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Extracts and returns the list of attachments from an email struct.
+        This is a thin getter that exists to give the attachments step a
+        named entry point in the pipeline, keeping <code>main.py</code>
+        readable as a sequence of named stages rather than a series of
+        dict lookups.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">email_struct</span>
+          <span class="param-desc">Dict returned by <code>read_raw_email</code>. Only the <code>attachments</code> key is read.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>List of attachment dicts, each containing <code>filename</code>, <code>file_type</code>, and <code>path</code>. Returns an empty list if the email has no attachments.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="attachments-spawn">
+      <div class="fn-header">
+        <span class="fn-sig">spawn_attachment_workers(attachments)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Parses all attachments in parallel using a pool of up to 4 worker
+        threads. Each attachment is submitted as a separate background task
+        that calls <code>parse_single_attachment</code> from
+        <code>parsers.py</code>.<br><br>
+        Results are collected in the same order as the input list. Each
+        background task is waited on for up to 300 seconds — long enough to
+        handle large ZIP archives or PPT files that need PowerPoint automation,
+        but bounded to prevent a single stuck file from holding up the entire
+        email.<br><br>
+        If a background task fails for any reason (parse error, timeout, or
+        otherwise), the error is logged and that attachment's result is
+        replaced with an empty text string. The rest of the attachments
+        continue processing normally — one bad file never aborts the others.
+        Returns early with an empty list if there are no attachments.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">attachments</span>
+          <span class="param-desc">List of attachment dicts from <code>handle_attachments</code>.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>List of <code>(filename, text)</code> tuples in the same order as the input. Failed or unparseable attachments produce an empty string for their text.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="attachments-combine">
+      <div class="fn-header">
+        <span class="fn-sig">combine_attachment_text(results)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Joins the parsed text from all attachments into a single string,
+        with each file's content labelled by its filename. Attachments
+        that produced no text are silently skipped.<br><br>
+        Each included section is formatted as a <code>[filename]</code>
+        header on its own line, followed by the file's text. Sections are
+        separated by a blank line. This labelling is important for downstream
+        extraction: the <code>per_file</code> rule option uses these markers
+        to split the combined string back into per-file chunks when summing
+        values across separate documents.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">results</span>
+          <span class="param-desc">List of <code>(filename, text)</code> tuples from <code>spawn_attachment_workers</code>.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Single string with all non-empty attachment texts joined by blank lines, each section preceded by its <code>[filename]</code> label. Returns an empty string if all attachments produced no text.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════ PARSERS ════ -->
+  <section class="module-section" id="module-parsers">
+    <div class="module-header">
+      <span class="module-filename">parsers.py</span>
+      <span class="module-tagline">Stage 3 — File-type parsers for every attachment format</span>
+    </div>
+
+    <div class="group-label">Public</div>
+
+    <div class="fn" id="parsers-parse-pdf">
+      <div class="fn-header">
+        <span class="fn-sig">parse_pdf(path)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Extracts all text from a PDF file using pdfplumber, with a per-page
+        OCR fallback via Tesseract for pages that yield no text.<br><br>
+        For each page, the function first finds all table regions and extracts
+        them as pipe-delimited rows (each cell joined by <code>_join_cell</code>
+        to handle multi-line cell content). It then removes those table regions
+        from the page's word list, sorts the remaining words by vertical position
+        and horizontal offset, and reassembles them into lines of body text.<br><br>
+        If a specific page produces no text at all (e.g. a scanned or
+        image-only page in an otherwise text-based document), that page alone
+        is converted to an image and OCR-ed with Tesseract. This means a mixed
+        PDF — some pages with selectable text, some that are scanned images —
+        is handled correctly without losing content from either type.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">path</span>
+          <span class="param-desc">Absolute path to the PDF file.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Extracted text string. Empty string if the file yields nothing even after OCR.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="parsers-parse-xlsx">
+      <div class="fn-header">
+        <span class="fn-sig">parse_xlsx(path)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Extracts text from an XLSX spreadsheet using openpyxl, opened in
+        a mode that reads the last calculated value of formula cells rather
+        than the formula text itself.<br><br>
+        Hidden sheets and sheets whose names match the <code>skip_sheets</code>
+        list in config.json are silently skipped. Each remaining sheet gets a
+        <code>[Sheet: name]</code> header line, followed by its rows as
+        pipe-delimited strings. Trailing empty cells are stripped from each
+        row; fully blank rows are omitted entirely.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">path</span>
+          <span class="param-desc">Absolute path to the XLSX file.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Extracted text with sheet-name headers, or an empty string if the file has no visible content.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="parsers-parse-xls">
+      <div class="fn-header">
+        <span class="fn-sig">parse_xls(path)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Extracts text from a legacy binary XLS spreadsheet using the xlrd
+        library. xlrd is loaded on demand inside the function; if it is not
+        installed, the function logs an error and returns an empty string
+        instead of crashing the pipeline.<br><br>
+        Applies the same skip logic as <code>parse_xlsx</code> — hidden
+        sheets and sheets matching <code>skip_sheets</code> are ignored.
+        Rows are formatted identically: pipe-delimited, trailing empty cells
+        stripped, blank rows omitted.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">path</span>
+          <span class="param-desc">Absolute path to the XLS file.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Extracted text with sheet-name headers, or an empty string if xlrd is missing or the file has no content.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="parsers-parse-csv">
+      <div class="fn-header">
+        <span class="fn-sig">parse_csv(path)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Reads a CSV file and formats its rows as pipe-delimited text, using
+        the same row structure as the spreadsheet parsers for consistency
+        with downstream extractors.<br><br>
+        The file is opened with a special encoding flag that silently removes
+        the invisible marker Excel writes at the start of UTF-8 CSV exports.
+        Without this, the first column header would have an invisible prefix
+        and label matching would fail.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">path</span>
+          <span class="param-desc">Absolute path to the CSV file.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Pipe-delimited text, one row per line. Empty string if the file is blank.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="parsers-parse-spreadsheet">
+      <div class="fn-header">
+        <span class="fn-sig">parse_spreadsheet(path)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Dispatcher that routes a spreadsheet file to the correct parser based
+        on its file extension. Exists so that callers (including
+        <code>parse_zip</code>) only need to handle one function for all
+        spreadsheet types.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">path</span>
+          <span class="param-desc">Absolute path to the spreadsheet file (.xlsx, .xls, or .csv).</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Extracted text from <code>parse_xls</code>, <code>parse_csv</code>, or <code>parse_xlsx</code> depending on the extension.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="parsers-parse-ppt">
+      <div class="fn-header">
+        <span class="fn-sig">parse_ppt(path, powerpoint=None)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Extracts text from both modern PPTX files and old binary PPT files,
+        routing to the appropriate backend automatically.<br><br>
+        The function first checks the file's format by inspecting its first
+        four bytes. Old binary PPT files cannot be opened by python-pptx, so
+        they are handed off to <code>_extract_text_via_com</code> which
+        controls Microsoft PowerPoint directly to read the file.<br><br>
+        For modern PPTX files, python-pptx is used. The function walks all
+        shapes on each slide (recursing into groups via <code>_iter_shapes</code>)
+        and extracts: text frame content paragraph by paragraph, table rows as
+        pipe-delimited strings, and embedded images through Tesseract OCR.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">path</span>
+          <span class="param-desc">Absolute path to the .ppt or .pptx file.</span>
+        </div>
+        <div class="param-row">
+          <span class="param-name">powerpoint</span>
+          <span class="param-desc">Optional PowerPoint automation instance to reuse for old binary files. When not provided, <code>_extract_text_via_com</code> creates and destroys its own. Passed in by <code>parse_zip</code> to share one instance across all files in an archive.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Extracted text string with slide markers (<code>[Slide N]</code>), or an empty string if the file cannot be opened.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="parsers-parse-zip">
+      <div class="fn-header">
+        <span class="fn-sig">parse_zip(path, depth=0)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Extracts and parses all supported files found inside a ZIP archive,
+        including recursively nested ZIPs up to a maximum nesting depth of 3.<br><br>
+        The archive is extracted to a temporary folder. The function then
+        walks through all the files and routes each one to its appropriate
+        parser. Unsupported file types are logged and skipped.<br><br>
+        PowerPoint automation is started lazily — only when the first old
+        binary PPT is encountered inside the archive — and the same running
+        instance is then shared across all remaining presentation files to
+        avoid the overhead of starting PowerPoint multiple times.<br><br>
+        Both the PowerPoint instance and the temporary folder are always
+        cleaned up when done, even if parsing fails partway through.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">path</span>
+          <span class="param-desc">Absolute path to the ZIP file.</span>
+        </div>
+        <div class="param-row">
+          <span class="param-name">depth</span>
+          <span class="param-desc">Current nesting depth, starting at 0. Archives at depth 3 or beyond are skipped with a warning to prevent zip-bomb exploitation.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Concatenated text from all supported entries, each prefixed with its filename in square brackets. Empty string if the archive contains nothing parseable.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="parsers-parse-txt">
+      <div class="fn-header">
+        <span class="fn-sig">parse_txt(path)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Reads a plain text file and returns its contents. Used for
+        <code>.txt</code> and <code>.doc</code>/<code>.docx</code> files
+        that cannot be processed by a more specialised parser. Decoding
+        errors are silently ignored so that files with mixed or unusual
+        encodings do not crash the pipeline.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">path</span>
+          <span class="param-desc">Absolute path to the text file.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>File contents as a string with leading and trailing whitespace stripped.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="parsers-parse-single">
+      <div class="fn-header">
+        <span class="fn-sig">parse_single_attachment(path, filename)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Top-level dispatcher called by the attachment worker pool for every
+        attachment in an email folder. Routes to the appropriate parser based
+        on the file extension: PDF, spreadsheet, presentation, document, ZIP,
+        or image (read directly with OCR). Files with an unrecognised
+        extension are logged as a warning and return an empty text string —
+        they do not crash the pipeline.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">path</span>
+          <span class="param-desc">Absolute path to the attachment file on disk.</span>
+        </div>
+        <div class="param-row">
+          <span class="param-name">filename</span>
+          <span class="param-desc">Original filename of the attachment. Used for extension detection and as the label in the returned tuple.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Tuple of <code>(filename, extracted_text)</code>. The filename is always the original name passed in; the text is an empty string for unsupported or unparseable files.</p>
+      </div>
+    </div>
+
+    <div class="group-label">Internal Helpers</div>
+
+    <div class="fn" id="parsers-join-cell">
+      <div class="fn-header">
+        <span class="fn-sig">_join_cell(cell)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Joins a multi-line cell string from pdfplumber into a single readable
+        line. pdfplumber sometimes splits a single cell value across multiple
+        lines when the PDF layout wraps text inside a cell.<br><br>
+        The function checks each continuation part: if it is a short
+        (≤5 character), all-alphabetic, lowercase-starting string and the
+        previous part ended with a letter, it is treated as a word fragment
+        and appended without a space (e.g. <code>"suppli"</code> +
+        <code>"er"</code> → <code>"supplier"</code>). All other parts get
+        a leading space.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">cell</span>
+          <span class="param-desc">Raw cell string from pdfplumber, potentially containing newline characters.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Single-line string with word fragments rejoined and other parts space-separated.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="parsers-cell-str">
+      <div class="fn-header">
+        <span class="fn-sig">_cell_str(cell)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Converts a raw spreadsheet cell value to a plain string, with special
+        handling for numeric values. Whole-number floats like <code>3.0</code>
+        are formatted as <code>"3"</code> since spreadsheets commonly store
+        integers as floats. Values like <code>inf</code> or <code>nan</code>
+        are handled safely to avoid crashes. Other floats are formatted to
+        two decimal places. All other value types go through standard string
+        conversion.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">cell</span>
+          <span class="param-desc">Raw cell value as returned by openpyxl or xlrd — may be int, float, str, bool, datetime, or None.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>String representation of the cell value, with clean integer formatting for whole-number floats.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="parsers-is-old-ppt">
+      <div class="fn-header">
+        <span class="fn-sig">_is_old_ppt_format(path)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Determines whether a file is an old binary PowerPoint file by
+        inspecting the first four bytes of its content, rather than relying
+        on the file extension alone. Files can be misnamed, so a bytes check
+        is more reliable.<br><br>
+        The check looks for the bytes <code>D0 CF 11 E0</code> at the very
+        start — the fixed identifier that marks the old Microsoft Office binary
+        format used by all pre-2007 Office files (.doc, .xls, .ppt). Files
+        matching this signature cannot be opened by python-pptx and must
+        be handled via PowerPoint automation instead.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">path</span>
+          <span class="param-desc">Path to the file to inspect.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p><code>True</code> if the first four bytes match the old Office binary format marker, <code>False</code> otherwise.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="parsers-extract-com">
+      <div class="fn-header">
+        <span class="fn-sig">_extract_text_via_com(path, powerpoint=None)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Extracts text, tables, and OCR content from a PowerPoint file by
+        controlling Microsoft PowerPoint directly via Windows automation.
+        This is the only way to read old binary PPT files.<br><br>
+        The function opens the file by launching PowerPoint in the background,
+        iterates through every slide, and collects: text from all text frames,
+        pipe-delimited rows from tables, and OCR results from embedded picture
+        shapes. Images are exported to a temporary file, read by Tesseract,
+        then deleted immediately after.<br><br>
+        If no PowerPoint instance is passed in, the function starts a new one
+        and shuts it down when done. If one is passed in (by
+        <code>parse_zip</code>), the caller manages the instance. On any
+        failure, a warning is logged and an empty string is returned rather
+        than crashing the pipeline.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">path</span>
+          <span class="param-desc">Absolute path to the presentation file.</span>
+        </div>
+        <div class="param-row">
+          <span class="param-name">powerpoint</span>
+          <span class="param-desc">Optional running PowerPoint instance to reuse. When not provided, the function creates and destroys its own.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Extracted text string with slide markers, or an empty string if PowerPoint automation fails (e.g. PowerPoint is not installed).</p>
+      </div>
+    </div>
+
+    <div class="fn" id="parsers-iter-shapes">
+      <div class="fn-header">
+        <span class="fn-sig">_iter_shapes(shapes)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Walks through all shapes on a slide, including shapes that are nested
+        inside groups. In PowerPoint, shapes can be grouped together, and the
+        text inside a group is only accessible through its individual child
+        shapes. Without this recursive walk, text inside groups would be
+        silently missed. Yields each individual non-group shape one at a time.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">shapes</span>
+          <span class="param-desc">Collection of shapes from a slide, typically <code>slide.shapes</code>.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Individual shapes from the full shape tree, one at a time, in order.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════ EXTRACTOR ════ -->
+  <section class="module-section" id="module-extractor">
+    <div class="module-header">
+      <span class="module-filename">extractor.py</span>
+      <span class="module-tagline">Stage 4 — Rule-based field extraction engine</span>
+    </div>
+
+    <div class="group-label">Public</div>
+
+    <div class="fn" id="extractor-load-rules">
+      <div class="fn-header">
+        <span class="fn-sig">load_rules(rules_path)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Loads and returns the extraction rules from a JSON file. The returned
+        dict is passed directly into <code>apply_extraction_rules()</code>
+        on every call, so it should be loaded once at startup and reused
+        across all email folders rather than reloaded per email.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">rules_path</span>
+          <span class="param-desc">Path to the JSON rules file, typically <code>rules.json</code> in the project root.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Dict mapping field names to their rule configuration dicts.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="extractor-apply-rules">
+      <div class="fn-header">
+        <span class="fn-sig">apply_extraction_rules(body_string, attachment_string, rules, correlation_id=None)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        The main extraction dispatcher. Iterates every field defined in
+        the rules dict and calls the appropriate extraction helper based
+        on the rule's <code>type</code> key. Returns a dict mapping each
+        field name to its extracted string value.<br><br>
+
+        <strong>Source priority.</strong> Each rule can specify
+        <code>source_priority</code> to control which text is searched:
+        <code>"body"</code> searches only the email body,
+        <code>"attachment"</code> searches only attachment text, and
+        <code>"both"</code> (the default) tries the attachment first and
+        falls back to the body if nothing is found.<br><br>
+
+        <strong>Rule types:</strong><br>
+        &bull; <code>auto</code> — fills the field automatically without searching text. Supports <code>correlation_id</code> (set to the folder name) and <code>date_of_input</code> (today's date).<br>
+        &bull; <code>empty</code> — always returns an empty string. Used for fields that exist in the output schema but cannot be extracted.<br>
+        &bull; <code>label</code> — searches for a label string and extracts the value that follows it. Delegates to <code>_extract_label</code>. Supports optional <code>normalize_boolean</code>, <code>column_values</code> fallback, and <code>regex_fallback</code>.<br>
+        &bull; <code>regex</code> — extracts the first match of a pattern directly from the text. Delegates to <code>_extract_regex</code>.<br>
+        &bull; <code>max_pattern</code> — finds all pattern-matched numbers and returns the largest. Delegates to <code>_extract_max_pattern</code>.<br>
+        &bull; <code>sum_pattern</code> — finds all pattern-matched numbers and returns their sum. Supports <code>per_file</code> and <code>year_anchored</code> options.<br>
+        &bull; <code>keyword_match</code> — returns the first value from a known-values list found in the text. Delegates to <code>_keyword_match</code>.<br>
+        &bull; <code>email_domain</code> — derives the supplier name from the first external email domain found in the body. Always searches the body, regardless of <code>source_priority</code>. Falls back to a label search if no domain is found.<br><br>
+
+        If nothing is extracted after all attempts, the rule's
+        <code>default</code> value is used (empty string if not set).
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row">
+          <span class="param-name">body_string</span>
+          <span class="param-desc">Full email body string including the header block (Subject, Sender, Recipients, Date) prepended by <code>process_email</code>.</span>
+        </div>
+        <div class="param-row">
+          <span class="param-name">attachment_string</span>
+          <span class="param-desc">Combined text from all parsed attachments, produced by <code>combine_attachment_text</code>.</span>
+        </div>
+        <div class="param-row">
+          <span class="param-name">rules</span>
+          <span class="param-desc">Extraction rules dict loaded by <code>load_rules</code>.</span>
+        </div>
+        <div class="param-row">
+          <span class="param-name">correlation_id</span>
+          <span class="param-desc">Optional folder name used to fill the <code>correlation_id</code> auto field. Falls back to a random unique ID if not provided.</span>
+        </div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Dict mapping every field name from the rules to its extracted string value.</p>
+      </div>
+    </div>
+
+    <div class="group-label">Internal Helpers</div>
+
+    <div class="fn" id="extractor-extract-label">
+      <div class="fn-header">
+        <span class="fn-sig">_extract_label(text, labels, pattern=None, max_length=100, line_start=False, next_line=False, collect_lines_pattern=None)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        The most versatile extraction helper. Searches text for a label
+        string and returns the value associated with it. Labels are tried
+        in order; the first match wins.<br><br>
+
+        <strong>Default mode.</strong> Searches for <code>label [any text] : value</code>
+        or <code>label [any text] | value</code>. The result is capped at
+        <code>max_length</code> characters.<br><br>
+
+        <strong>pattern.</strong> When set, the extracted value is validated
+        against this search pattern before being returned. If it does not
+        match, the next label in the list is tried.<br><br>
+
+        <strong>line_start.</strong> Requires the label to appear at the
+        beginning of a line. Prevents false matches when the label word
+        appears inside a longer sentence elsewhere in the text.<br><br>
+
+        <strong>next_line.</strong> When combined with <code>pattern</code>,
+        searches the lines below the label for a pattern match instead of
+        the same line. Returns the last match found within five lines.<br><br>
+
+        <strong>collect_lines_pattern.</strong> Collects all consecutive
+        lines below the label that match the given pattern, strips leading
+        numbering like <code>1)</code>, and joins them with <code>"; "</code>.
+        Useful for multi-item fields like a list of materials.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row"><span class="param-name">text</span><span class="param-desc">Source text to search through.</span></div>
+        <div class="param-row"><span class="param-name">labels</span><span class="param-desc">Ordered list of label strings to try. Earlier labels take priority.</span></div>
+        <div class="param-row"><span class="param-name">pattern</span><span class="param-desc">Optional search pattern applied to the raw extracted value. Only returns if the pattern matches.</span></div>
+        <div class="param-row"><span class="param-name">max_length</span><span class="param-desc">Maximum character length of the returned value. Default is 100.</span></div>
+        <div class="param-row"><span class="param-name">line_start</span><span class="param-desc">If True, the label must appear at the beginning of a line.</span></div>
+        <div class="param-row"><span class="param-name">next_line</span><span class="param-desc">If True and pattern is set, searches the lines below the label for a pattern match.</span></div>
+        <div class="param-row"><span class="param-name">collect_lines_pattern</span><span class="param-desc">If set, collects all consecutive matching lines after the label and joins them with "; ".</span></div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Extracted value string, or an empty string if no label produces a match.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="extractor-extract-regex">
+      <div class="fn-header">
+        <span class="fn-sig">_extract_regex(text, pattern)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Searches text for the first match of a given pattern (case-insensitive)
+        and returns it. Used for fields where the value can be found directly
+        by pattern without needing a label to anchor it — for example, a date
+        in a known format or a product code with a fixed structure.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row"><span class="param-name">text</span><span class="param-desc">Source text to search.</span></div>
+        <div class="param-row"><span class="param-name">pattern</span><span class="param-desc">Search pattern (case-insensitive).</span></div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Matched string stripped of surrounding whitespace, or an empty string if no match is found.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="extractor-extract-supplier">
+      <div class="fn-header">
+        <span class="fn-sig">_extract_supplier_from_body(body)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Derives a supplier company name from the first external email
+        address found in the body. Finds all email addresses, skips any
+        whose domain is in the internal domains list from config.json,
+        and converts the first external domain's company name segment
+        to a readable title-cased string.<br><br>
+        For example, an email from <code>john@acme-solutions.com</code>
+        would produce <code>"Acme Solutions"</code>. Used as a fallback
+        when no supplier name can be found via a label in the document text.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row"><span class="param-name">body</span><span class="param-desc">Full email body string, including the header block where the sender address appears.</span></div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Title-cased company name string, or an empty string if no external address is found.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="extractor-keyword-match">
+      <div class="fn-header">
+        <span class="fn-sig">_keyword_match(text, values, aliases=None)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Searches text for whole-word occurrences of each value in a
+        known-values list and returns the first match in its standard form.
+        The match is case-insensitive but the returned value always uses the
+        exact casing from the <code>values</code> list.<br><br>
+        If no value from the list matches and an <code>aliases</code> dict
+        is provided, it tries each alias key as a whole-word match and returns
+        the corresponding standard value. Aliases are checked only after all
+        list values have failed.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row"><span class="param-name">text</span><span class="param-desc">Source text to search.</span></div>
+        <div class="param-row"><span class="param-name">values</span><span class="param-desc">Ordered list of known values to match against. Earlier entries take priority.</span></div>
+        <div class="param-row"><span class="param-name">aliases</span><span class="param-desc">Optional dict mapping alternative spellings to their standard values. Tried only if no list value matches.</span></div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Matched standard value string, or an empty string if nothing matches.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="extractor-normalize-bool">
+      <div class="fn-header">
+        <span class="fn-sig">_normalize_boolean(value)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Normalises a raw label-extracted value to a clean <code>Yes</code>,
+        <code>No</code>, or empty string. Used for fields that are essentially
+        yes/no questions but where the source document may express the answer
+        in many different ways.<br><br>
+        <code>"yes"</code> or <code>"y"</code> → <code>"Yes"</code>;<br>
+        <code>"no"</code>, <code>"n"</code>, or <code>"n/a"</code> → <code>"No"</code>;<br>
+        a purely numeric string → <code>""</code> (the label likely matched a numeric field by accident);<br>
+        any other non-empty string → <code>"Yes"</code> (the presence of text implies an affirmative answer).
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row"><span class="param-name">value</span><span class="param-desc">Raw string extracted by a label rule before normalisation.</span></div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p><code>"Yes"</code>, <code>"No"</code>, or <code>""</code>.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="extractor-year-table-sum">
+      <div class="fn-header">
+        <span class="fn-sig">_find_year_table_sum(text, max_value=None)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Sums numeric volume quantities from a year-based table, handling
+        two common layouts found in supplier documents.<br><br>
+        <strong>Strategy 1 — column-per-year.</strong> Looks for a header
+        row containing two or more year values (e.g. <code>2025 | 2026 | 2027</code>).
+        If found, reads the rows below and sums the numbers in the first row
+        with valid quantities.<br><br>
+        <strong>Strategy 2 — row-per-year.</strong> Finds lines where a year
+        and a quantity appear on the same line separated by a pipe character
+        (e.g. <code>2025 | 64,000</code>). Sums all matched quantities.<br><br>
+        Both strategies remove totals rows (where the last number equals the
+        sum of all others) and duplicated column groups before summing.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row"><span class="param-name">text</span><span class="param-desc">Source text, typically from a single attachment section.</span></div>
+        <div class="param-row"><span class="param-name">max_value</span><span class="param-desc">Optional upper cap. Individual values above this are excluded from the sum.</span></div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Summed volume as an integer string, or an empty string if no year table is found.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="extractor-aggregate-pattern">
+      <div class="fn-header">
+        <span class="fn-sig">_aggregate_pattern(text, pattern, fn, max_value=None, fallback_pattern=None)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Generic numeric aggregation helper. Finds all pattern matches in text,
+        converts them to numbers (handling comma-formatted values like
+        <code>64,000</code>), optionally filters out values above
+        <code>max_value</code>, and applies the given aggregation function to
+        the result set. Tries the fallback pattern if the primary yields nothing.
+        Shared backend for both <code>_extract_sum_pattern</code> and
+        <code>_extract_max_pattern</code>.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row"><span class="param-name">text</span><span class="param-desc">Source text to search.</span></div>
+        <div class="param-row"><span class="param-name">pattern</span><span class="param-desc">Search pattern whose matches are treated as numeric values.</span></div>
+        <div class="param-row"><span class="param-name">fn</span><span class="param-desc">Aggregation function applied to the matched numbers, e.g. <code>sum</code> or <code>max</code>.</span></div>
+        <div class="param-row"><span class="param-name">max_value</span><span class="param-desc">Optional upper cap. Values above this are excluded before aggregation.</span></div>
+        <div class="param-row"><span class="param-name">fallback_pattern</span><span class="param-desc">Secondary pattern tried if the primary produces no results.</span></div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Aggregated result as an integer string. Empty string if no matches are found.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="extractor-sum-pattern">
+      <div class="fn-header">
+        <span class="fn-sig">_extract_sum_pattern(text, pattern, max_value=None, fallback_pattern=None)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Sums all pattern-matched numeric values in the text. A thin wrapper
+        around <code>_aggregate_pattern</code> with the sum function. Typically
+        used for volume fields where multiple yearly quantities appear and need
+        to be totalled.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row"><span class="param-name">text</span><span class="param-desc">Source text to search.</span></div>
+        <div class="param-row"><span class="param-name">pattern</span><span class="param-desc">Search pattern whose matches are summed.</span></div>
+        <div class="param-row"><span class="param-name">max_value</span><span class="param-desc">Optional upper cap on individual values before summing.</span></div>
+        <div class="param-row"><span class="param-name">fallback_pattern</span><span class="param-desc">Secondary pattern tried if the primary yields nothing.</span></div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Sum of all matched values as an integer string, or an empty string if no matches.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="extractor-max-pattern">
+      <div class="fn-header">
+        <span class="fn-sig">_extract_max_pattern(text, pattern, max_value=None, fallback_pattern=None)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Returns the largest pattern-matched numeric value in the text. A thin
+        wrapper around <code>_aggregate_pattern</code> with the max function.
+        Typically used for fields like price or size where only the highest
+        value across multiple mentions is relevant.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row"><span class="param-name">text</span><span class="param-desc">Source text to search.</span></div>
+        <div class="param-row"><span class="param-name">pattern</span><span class="param-desc">Search pattern whose matches are compared.</span></div>
+        <div class="param-row"><span class="param-name">max_value</span><span class="param-desc">Optional upper cap. Values above this are excluded before finding the maximum.</span></div>
+        <div class="param-row"><span class="param-name">fallback_pattern</span><span class="param-desc">Secondary pattern tried if the primary yields nothing.</span></div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Largest matched value as an integer string, or an empty string if no matches.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="extractor-column-values">
+      <div class="fn-header">
+        <span class="fn-sig">_extract_column_values(text, labels)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Extracts all non-empty cell values from a named column in a
+        pipe-delimited table. Used as a fallback in label rules when a field
+        value appears as a column in a structured table rather than after a
+        label on a single line.<br><br>
+        Finds the first occurrence of a label as a column header, records
+        that column's position, then reads all subsequent rows collecting the
+        value at that position. Stops at a blank line or a file section marker.
+        Only cells containing at least one letter are included. Multiple values
+        are joined with <code>"; "</code>.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row"><span class="param-name">text</span><span class="param-desc">Source text containing a pipe-delimited table.</span></div>
+        <div class="param-row"><span class="param-name">labels</span><span class="param-desc">Ordered list of column header strings to search for. Earlier labels take priority.</span></div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Semicolon-separated cell values from the matched column, or an empty string if no matching column header is found.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════ REPORTER ════ -->
+  <section class="module-section" id="module-reporter">
+    <div class="module-header">
+      <span class="module-filename">reporter.py</span>
+      <span class="module-tagline">Stage 5 — Gold Report Excel generation</span>
+    </div>
+
+    <div class="group-label">Public</div>
+
+    <div class="fn" id="reporter-generate">
+      <div class="fn-header">
+        <span class="fn-sig">generate_excel_report(records, output_path)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Writes all extraction results to a styled Excel workbook with
+        two sheets — <strong>Results</strong> for emails that were processed
+        successfully, and <strong>Failures</strong> for emails that errored
+        or timed out.<br><br>
+        Records are split based on whether they contain an <code>_error</code>
+        key. Successful records have that internal key stripped before being
+        written, so it never appears as a column in the output. This is done
+        on a clean copy of each record so the original list is never modified.<br><br>
+        Both sheets are styled via <code>_style_sheet</code> after the data
+        is written. The Failures sheet is only styled if it actually contains
+        rows.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row"><span class="param-name">records</span><span class="param-desc">List of dicts returned by <code>process_email</code> — one per email folder. Failed folders have an <code>_error</code> key; successful ones have extracted field values.</span></div>
+        <div class="param-row"><span class="param-name">output_path</span><span class="param-desc">Full file path where the Excel workbook will be written, including filename and <code>.xlsx</code> extension.</span></div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Nothing. Writes the file to disk and logs the path and record counts.</p>
+      </div>
+      <div class="output-preview">
+        <div class="section-label">Output structure</div>
+        <div class="output-row">
+          <span class="output-key">Sheet: Results</span>
+          <span class="output-val">One row per successfully processed email. Columns are the field names from rules.json. Header row is dark blue, bold, white text.</span>
+        </div>
+        <div class="output-row">
+          <span class="output-key">Sheet: Failures</span>
+          <span class="output-val">One row per failed or timed-out folder, with the folder name and error message. Only styled if at least one failure exists.</span>
+        </div>
+        <div class="output-row">
+          <span class="output-key">Both sheets</span>
+          <span class="output-val">Frozen top row, auto-filter on all columns, column widths auto-sized to content (capped at 50 characters).</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="group-label">Internal Helpers</div>
+
+    <div class="fn" id="reporter-style">
+      <div class="fn-header">
+        <span class="fn-sig">_style_sheet(ws)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Applies all visual formatting to a single Excel worksheet in place.
+        Called by <code>generate_excel_report</code> once per sheet after
+        the data has been written.<br><br>
+        <strong>Column widths.</strong> Measures the widest cell value in
+        each column and sets the column width to match, plus small padding,
+        capped at 50 characters.<br><br>
+        <strong>Header row.</strong> Applies a dark blue background
+        (<code>#1F4E79</code>), bold white text, and centred alignment to
+        every cell in row 1.<br><br>
+        <strong>Freeze and filter.</strong> Freezes the top row so the
+        header stays visible when scrolling. Enables Excel's auto-filter so
+        any column can be filtered or sorted without extra setup.
+      </p>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row"><span class="param-name">ws</span><span class="param-desc">An openpyxl Worksheet object. Modified directly — nothing is returned.</span></div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Nothing. All changes are applied directly to the worksheet object passed in.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════ MAIN ════ -->
+  <section class="module-section" id="module-main">
+    <div class="module-header">
+      <span class="module-filename">main.py</span>
+      <span class="module-tagline">Orchestrator — ties every module together and runs the pipeline</span>
+    </div>
+
+    <div class="group-label">Public</div>
+
+    <div class="fn" id="main-main">
+      <div class="fn-header">
+        <span class="fn-sig">main()</span>
+        <span class="tag tag-public">public</span>
+        <span class="tag tag-entrypoint">entry point</span>
+      </div>
+      <p class="fn-summary">
+        The top-level function that runs the entire pipeline. Called once
+        when the script is executed directly.<br><br>
+        Loads the extraction rules from <code>rules.json</code>, scans
+        <code>INPUT_PATH</code> for subfolders (each subfolder is one email),
+        and submits each to a pool of parallel workers. The number of workers
+        matches the number of CPU cores on the machine, so the pipeline scales
+        automatically to the available hardware.<br><br>
+        Each folder is given up to 300 seconds to complete. If a folder takes
+        longer, it is logged as a timeout error and skipped so one slow email
+        never blocks the rest. Once all folders are done, results are handed to
+        <code>generate_excel_report</code> to write the Gold Report.
+      </p>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Nothing. All output goes to the Excel report written to disk and to the log file.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="main-process-email">
+      <div class="fn-header">
+        <span class="fn-sig">process_email(folder_path, rules)</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Runs the full extraction pipeline for a single email folder. This
+        is the function submitted to the worker pool by <code>main</code> —
+        one call per email, running in parallel with all the others.<br><br>
+        If anything goes wrong at any step, the error is caught, logged,
+        and the function returns an error record instead of crashing the run.
+      </p>
+      <div class="pipeline-box">
+        <div class="section-label">Steps performed per email</div>
+        <div class="pipeline-step"><span class="step-num">1</span><span class="step-desc">Read the email file and collect sidecar attachments — <span class="strip">read_raw_email</span></span></div>
+        <div class="pipeline-step"><span class="step-num">2</span><span class="step-desc">Strip HTML from the email body and normalise whitespace — <span class="strip">extract_body_text</span></span></div>
+        <div class="pipeline-step"><span class="step-num">3</span><span class="step-desc">Filter the recipients list down to external addresses only, removing any from the company's own domains</span></div>
+        <div class="pipeline-step"><span class="step-num">4</span><span class="step-desc">Build the full body string: a header block (Subject, Project, Sender, Recipients, Date) prepended to the plain text body</span></div>
+        <div class="pipeline-step"><span class="step-num">5</span><span class="step-desc">Parse all attachments in parallel — <span class="strip">spawn_attachment_workers</span></span></div>
+        <div class="pipeline-step"><span class="step-num">6</span><span class="step-desc">Join attachment texts into one labelled string — <span class="strip">combine_attachment_text</span></span></div>
+        <div class="pipeline-step"><span class="step-num">7</span><span class="step-desc">Run all extraction rules against the body and attachment text — <span class="strip">apply_extraction_rules</span></span></div>
+      </div>
+      <br>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row"><span class="param-name">folder_path</span><span class="param-desc">Absolute path to the email folder. The folder name becomes the correlation ID in the output.</span></div>
+        <div class="param-row"><span class="param-name">rules</span><span class="param-desc">Extraction rules dict loaded once by <code>main</code> and shared across all parallel calls.</span></div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Dict of extracted field values on success. On failure, returns <code>{'_error': '...', 'folder': '...'}</code> so the reporter writes it to the Failures sheet.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="main-get-output-path">
+      <div class="fn-header">
+        <span class="fn-sig">get_output_path()</span>
+        <span class="tag tag-public">public</span>
+      </div>
+      <p class="fn-summary">
+        Builds the file path for the Gold Report Excel file. The filename
+        includes a timestamp taken at the moment of the call, so each run
+        produces a uniquely named file and previous reports are never
+        overwritten. The output directory is read from <code>config.json</code>
+        or the <code>MAILXTRACTOR_OUTPUT</code> environment variable if set.
+      </p>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Full file path string in the form <code>&lt;output_dir&gt;/gold_report_YYYYMMDD_HHMMSS.xlsx</code>.</p>
+      </div>
+    </div>
+
+    <div class="group-label">Internal Helpers</div>
+
+    <div class="fn" id="main-setup-logging">
+      <div class="fn-header">
+        <span class="fn-sig">_setup_logging()</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Sets up the logging system before the pipeline starts. Called once
+        at the very beginning of the script, before <code>main()</code>.<br><br>
+        Configures two destinations for log messages: a file
+        (<code>run_log.txt</code>, overwritten on each run) and the terminal.
+        Both use the format <code>HH:MM:SS [LEVEL] module - message</code>.
+        All messages at INFO level and above are captured — normal progress,
+        warnings, and errors — but not verbose debug output.
+      </p>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Nothing. Modifies the global logging configuration in place.</p>
+      </div>
+    </div>
+
+    <div class="fn" id="main-clean-subject">
+      <div class="fn-header">
+        <span class="fn-sig">_clean_subject(subject)</span>
+        <span class="tag tag-private">internal</span>
+      </div>
+      <p class="fn-summary">
+        Strips noise from a raw email subject line to produce a clean project
+        name. Email subjects often carry extra text unrelated to the actual
+        project — reply/forward prefixes, internal codes, sample identifiers,
+        and separator text added by mail clients. Six cleaning steps are
+        applied in order:
+      </p>
+      <div class="pipeline-box">
+        <div class="section-label">Cleaning steps</div>
+        <div class="pipeline-step"><span class="step-num">1</span><span class="step-desc">Remove invisible control characters that sometimes appear from certain mail clients</span></div>
+        <div class="pipeline-step"><span class="step-num">2</span><span class="step-desc">Strip reply and forward prefixes — <span class="strip">Re:</span>, <span class="strip">Fw:</span>, <span class="strip">FW:</span>, and combinations</span></div>
+        <div class="pipeline-step"><span class="step-num">3</span><span class="step-desc">Cut off anything after a <span class="strip">---</span> separator (often added by ticketing systems)</span></div>
+        <div class="pipeline-step"><span class="step-num">4</span><span class="step-desc">Remove sample identifiers like <span class="strip">- Sample 1</span></span></div>
+        <div class="pipeline-step"><span class="step-num">5</span><span class="step-desc">Remove trailing slash-separated codes such as <span class="strip">/RFQ-001</span></span></div>
+        <div class="pipeline-step"><span class="step-num">6</span><span class="step-desc">Remove trailing single-word suffixes like <span class="strip">- Revised</span> or <span class="strip">- Final</span></span></div>
+      </div>
+      <br>
+      <div class="fn-params">
+        <div class="section-label">Parameters</div>
+        <div class="param-row"><span class="param-name">subject</span><span class="param-desc">Raw subject string from the email header.</span></div>
+      </div>
+      <div class="fn-returns">
+        <div class="section-label">Returns</div>
+        <p>Cleaned subject string, or an empty string if nothing meaningful remains after stripping.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════ GLOSSARY ════ -->
+  <section class="glossary-section" id="glossary">
+    <h2>Glossary</h2>
+    <p class="glossary-intro">Technical terms used throughout this reference, explained in plain language.</p>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Thread pool / parallel workers</div>
+      <div class="glossary-def">A group of worker processes that run multiple tasks at the same time. Instead of processing emails one by one, the pool handles several simultaneously — one per CPU core — which makes the pipeline much faster on multi-core machines.</div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Dispatcher</div>
+      <div class="glossary-def">A function whose only job is to look at what it received (usually a file extension or rule type) and route it to the right handler. <code>parse_single_attachment</code> and <code>parse_spreadsheet</code> are examples.</div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">OCR (Optical Character Recognition)</div>
+      <div class="glossary-def">Technology that reads text from images. Used when a PDF page or an image attachment contains text that cannot be selected — for example, a scanned document. The tool uses Tesseract for this.</div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Windows automation (COM)</div>
+      <div class="glossary-def">A Windows technology that allows one program to control another. In this project, it is used to open old binary PPT files by launching and controlling Microsoft PowerPoint directly from Python. Requires PowerPoint to be installed on the machine.</div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Old binary format / format identifier bytes</div>
+      <div class="glossary-def">Every file type has a fixed sequence of bytes at the very start of the file that identify its format — like a fingerprint. Old Microsoft Office files (.doc, .xls, .ppt made before 2007) all share the same identifier: <code>D0 CF 11 E0</code>. Checking these bytes is more reliable than checking the file extension, since files can be misnamed.</div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">BOM (Byte Order Mark)</div>
+      <div class="glossary-def">An invisible character that Excel writes at the very start of CSV files it exports. Without special handling, it appears as a garbled prefix on the first column header, which would break label matching. The CSV parser removes it automatically.</div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Email parts / MIME structure</div>
+      <div class="glossary-def">An email is not a single block of text — it is made up of multiple parts: a plain text body, an HTML body, and any number of attachments. MIME is the standard that defines how these parts are packaged together. The reader walks through all the parts to find the body and skip attachment parts.</div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Regex (Regular Expression)</div>
+      <div class="glossary-def">A pattern written in a special syntax that describes what to search for in text. For example, a pattern can describe "any sequence of digits followed by a comma and three more digits" to match numbers like 64,000. Used extensively in the extraction engine to find and validate values.</div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Pipe-delimited</div>
+      <div class="glossary-def">A way of representing table rows as text, where columns are separated by a <code>|</code> character. For example, a row with three cells becomes <code>Material | Quantity | Price</code>. All spreadsheet and table parsers output text in this format so the extraction engine can read structured data consistently.</div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Correlation ID</div>
+      <div class="glossary-def">A unique identifier that links each row in the Gold Report back to its source email folder. It is simply the folder name. This makes it easy to trace any extracted record back to the original email.</div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Canonical / standard value</div>
+      <div class="glossary-def">The official, agreed-upon form of a value. For example, a field might accept "yes", "YES", or "Y" as inputs, but always outputs the canonical form "Yes". The aliases dict in keyword_match maps alternative spellings to their canonical equivalents.</div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Lazy initialisation</div>
+      <div class="glossary-def">Delaying the setup of something until it is actually needed. For example, <code>parse_zip</code> does not start PowerPoint at the beginning — it only starts it the moment the first old binary PPT file is found inside the archive. This avoids unnecessary startup time and resource usage when no such files exist.</div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Zip bomb</div>
+      <div class="glossary-def">A malicious ZIP file that contains deeply nested archives which expand to an enormous size when extracted, potentially crashing or hanging the system. <code>parse_zip</code> defends against this by refusing to recurse more than 3 levels deep.</div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  const targets = [...document.querySelectorAll('[id]')].filter(el =>
+    document.querySelector(`.sidebar a[href="#${el.id}"]`)
+  );
+
+  function updateActive() {
+    const scrollY = window.scrollY + 120;
+    let activeId = null;
+
+    for (const el of targets) {
+      if (el.getBoundingClientRect().top + window.scrollY <= scrollY) {
+        activeId = el.id;
+      }
+    }
+
+    document.querySelectorAll('.sidebar a').forEach(link => {
+      link.classList.toggle('active', link.getAttribute('href') === '#' + activeId);
+    });
+  }
+
+  window.addEventListener('scroll', updateActive, { passive: true });
+  updateActive();
+</script>

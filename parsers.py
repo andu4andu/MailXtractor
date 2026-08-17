@@ -74,16 +74,14 @@ def parse_pdf(path: str) -> str:
                 lines.setdefault(line_key, []).append(w["text"])
             body_text = "\n".join(" ".join(line) for line in lines.values())
 
-            text += body_text + "\n" + table_text
+            page_text = body_text + "\n" + table_text
+            if not page_text.strip():
+                logger.warning("No text on page %d, falling back to OCR: %s", page.page_number, path)
+                images = convert_from_path(path, first_page=page.page_number, last_page=page.page_number)
+                page_text = pytesseract.image_to_string(images[0]) + "\n"
+            text += page_text
 
     text = text.strip()
-
-    if not text:
-        logger.warning("No text in PDF, falling back to OCR: %s", path)
-        for image in convert_from_path(path):
-            text += pytesseract.image_to_string(image) + "\n"
-        text = text.strip()
-
     logger.debug("PDF extracted %d characters", len(text))
     return text
 
