@@ -1,4 +1,5 @@
 import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
 from parsers import parse_single_attachment
 
@@ -12,7 +13,7 @@ def handle_attachments(email_struct: dict) -> list:
 def spawn_attachment_workers(attachments: list) -> list:
     if not attachments:
         return []
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as executor:
         futures = [
             executor.submit(parse_single_attachment, att["path"], att["filename"])
             for att in attachments

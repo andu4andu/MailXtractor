@@ -51,17 +51,17 @@ def _join_cell(cell: str) -> str:
 
 def parse_pdf(path: str) -> str:
     logger.debug("Parsing PDF: %s", path)
-    text = ""
+    pages = []
 
     with pdfplumber.open(path) as pdf:
         for page in pdf.pages:
             table_bboxes = [table.bbox for table in page.find_tables()]
             tables = page.extract_tables()
-            table_text = ""
+            table_rows = []
             for table in tables:
                 for row in table:
-                    row_text = " | ".join(_join_cell(cell) if cell else "" for cell in row)
-                    table_text += row_text + "\n"
+                    table_rows.append(" | ".join(_join_cell(cell) if cell else "" for cell in row))
+            table_text = "\n".join(table_rows)
 
             non_table_page = page
             for bbox in table_bboxes:
@@ -78,10 +78,10 @@ def parse_pdf(path: str) -> str:
             if not page_text.strip():
                 logger.warning("No text on page %d, falling back to OCR: %s", page.page_number, path)
                 images = convert_from_path(path, first_page=page.page_number, last_page=page.page_number)
-                page_text = pytesseract.image_to_string(images[0]) + "\n"
-            text += page_text
+                page_text = pytesseract.image_to_string(images[0])
+            pages.append(page_text)
 
-    text = text.strip()
+    text = "\n".join(pages).strip()
     logger.debug("PDF extracted %d characters", len(text))
     return text
 
@@ -96,24 +96,24 @@ def _cell_str(cell) -> str:
 
 def parse_xlsx(path: str) -> str:
     logger.debug("Parsing XLSX: %s", path)
-    wb = openpyxl.load_workbook(path, data_only=True)
-    text = ""
+    wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
+    lines = []
     for sheet in wb.worksheets:
-        if sheet.sheet_state in ("hidden", "veryHidden"):
-            logger.debug("Skipping hidden sheet: %s", sheet.title)
+        if getattr(sheet, "sheet_state", "visible") in ("hidden", "veryHidden"):
             continue
         if any(skip in sheet.title for skip in _SKIP_SHEETS):
-            logger.debug("Skipping reference sheet: %s", sheet.title)
             continue
-        text += f"[Sheet: {sheet.title}]\n"
+        lines.append(f"[Sheet: {sheet.title}]")
         for row in sheet.iter_rows(values_only=True):
             str_cells = [_cell_str(c) if c is not None else "" for c in row]
             while str_cells and not str_cells[-1].strip():
                 str_cells.pop()
             if any(c.strip() for c in str_cells):
-                text += " | ".join(str_cells) + "\n"
+                lines.append(" | ".join(str_cells))
+    wb.close()
+    text = "\n".join(lines).strip()
     logger.debug("XLSX extracted %d characters", len(text))
-    return text.strip()
+    return text
 
 
 def parse_xls(path: str) -> str:
@@ -124,37 +124,37 @@ def parse_xls(path: str) -> str:
         return ""
     logger.debug("Parsing XLS: %s", path)
     wb = xlrd.open_workbook(path)
-    text = ""
+    lines = []
     for sheet in wb.sheets():
         if sheet.visibility != 0:
-            logger.debug("Skipping hidden sheet: %s", sheet.name)
             continue
         if any(skip in sheet.name for skip in _SKIP_SHEETS):
-            logger.debug("Skipping reference sheet: %s", sheet.name)
             continue
-        text += f"[Sheet: {sheet.name}]\n"
+        lines.append(f"[Sheet: {sheet.name}]")
         for row_idx in range(sheet.nrows):
             str_cells = [_cell_str(sheet.cell_value(row_idx, c)) for c in range(sheet.ncols)]
             while str_cells and not str_cells[-1].strip():
                 str_cells.pop()
             if any(c.strip() for c in str_cells):
-                text += " | ".join(str_cells) + "\n"
+                lines.append(" | ".join(str_cells))
+    text = "\n".join(lines).strip()
     logger.debug("XLS extracted %d characters", len(text))
-    return text.strip()
+    return text
 
 
 def parse_csv(path: str) -> str:
     logger.debug("Parsing CSV: %s", path)
-    text = ""
+    lines = []
     with open(path, "r", encoding="utf-8-sig", errors="ignore", newline="") as f:
         for row in csv.reader(f):
             str_cells = [c.strip() for c in row]
             while str_cells and not str_cells[-1]:
                 str_cells.pop()
             if any(str_cells):
-                text += " | ".join(str_cells) + "\n"
+                lines.append(" | ".join(str_cells))
+    text = "\n".join(lines).strip()
     logger.debug("CSV extracted %d characters", len(text))
-    return text.strip()
+    return text
 
 
 def parse_spreadsheet(path: str) -> str:
@@ -204,7 +204,8 @@ def _extract_text_via_com(path: str, powerpoint=None) -> str:
                             if row_text.strip("|").strip():
                                 text += row_text + "\n"
                     if shape.Type in (11, 13):  # msoLinkedPicture, msoPicture
-                        img_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as _tmp:
+                            img_path = _tmp.name
                         try:
                             shape.Export(img_path, 2)  # 2 = ppShapeFormatPNG
                             with Image.open(img_path) as img:

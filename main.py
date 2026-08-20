@@ -50,7 +50,7 @@ def _setup_logging() -> None:
         datefmt="%H:%M:%S"
     )
     root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
+    root.setLevel(logging.INFO)
     fh = logging.FileHandler("run_log.txt", encoding="utf-8", mode="w")
     fh.setLevel(logging.INFO)
     fh.setFormatter(fmt)
